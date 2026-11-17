@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-crypto-layers"
+name = "blocksmith-crypto-layers"
 description = "Capa genérica de cifrado: BitLocker, LUKS1/2, Core Storage. Expone DecryptingDevice como un BlockDevice más."
 version.workspace = true
 edition.workspace = true
@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 aes = "0.8.4"
 argon2 = "0.5.3"
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 hmac = "0.12.1"
 pbkdf2 = "0.12.2"
 serde = { version = "1.0.229", features = ["derive"] }

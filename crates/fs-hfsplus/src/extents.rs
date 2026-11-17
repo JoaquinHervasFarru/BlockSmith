@@ -2,7 +2,7 @@
 
 use std::cmp::Ordering;
 
-use dirforge_io::endian::{be_u32, put_be_u16, put_be_u32};
+use blocksmith_io::endian::{be_u32, put_be_u16, put_be_u32};
 
 use crate::volume_header::Extent;
 

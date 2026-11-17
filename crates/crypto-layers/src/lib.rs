@@ -9,7 +9,7 @@ pub mod bitlocker;
 pub mod corestorage;
 pub mod luks;
 
-use dirforge_io::BlockDevice;
+use blocksmith_io::BlockDevice;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -67,7 +67,7 @@ impl std::fmt::Debug for Secret {
 #[derive(Debug, thiserror::Error)]
 pub enum CryptoError {
     #[error(transparent)]
-    Io(#[from] dirforge_io::IoError),
+    Io(#[from] blocksmith_io::IoError),
     #[error("secreto incorrecto")]
     WrongSecret,
     #[error("cabecera de cifrado dañada: {0}")]

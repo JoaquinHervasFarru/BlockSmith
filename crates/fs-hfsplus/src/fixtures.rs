@@ -7,7 +7,7 @@
 
 use std::cmp::Ordering;
 
-use dirforge_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
+use blocksmith_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
 
 use crate::bitmap::AllocationBitmap;
 use crate::btree::{attr as battr, kind, HeaderRecord, NodeDescriptor, DESCRIPTOR_SIZE};
@@ -48,7 +48,7 @@ pub struct BuildOptions {
 impl Default for BuildOptions {
     fn default() -> Self {
         Self {
-            volume_name: "DirForge Test".into(),
+            volume_name: "BlockSmith Test".into(),
             size_bytes: 32 * 1024 * 1024,
             block_size: 4096,
             node_size: 4096,
@@ -79,7 +79,7 @@ pub fn sample_tree() -> Vec<Entry> {
         Entry::folder("Proyectos", vec![
             Entry::folder("Catálogo primavera", (1..=12).map(|i| Entry::file(&format!("pieza-{i:02}.txt"), format!("pieza {i}\n"))).collect()),
         ]),
-        Entry::file("Léeme.txt", "Volumen de prueba generado por DirForge.\n"),
+        Entry::file("Léeme.txt", "Volumen de prueba generado por BlockSmith.\n"),
     ]
 }
 

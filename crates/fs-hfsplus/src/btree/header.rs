@@ -1,6 +1,6 @@
 //! Header record (106 bytes), primer registro del nodo 0.
 
-use dirforge_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
+use blocksmith_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct HeaderRecord {

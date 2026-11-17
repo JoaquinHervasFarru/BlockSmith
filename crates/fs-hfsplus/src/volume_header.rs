@@ -1,7 +1,7 @@
 //! Volume Header HFS+/HFSX (TN1150). Está a 1024 bytes del inicio del volumen y
 //! hay una copia (alternate) a 1024 bytes del final.
 
-use dirforge_io::endian::{be_u16, be_u32, be_u64, put_be_u16, put_be_u32, put_be_u64};
+use blocksmith_io::endian::{be_u16, be_u32, be_u64, put_be_u16, put_be_u32, put_be_u64};
 use serde::Serialize;
 
 pub const SIZE: usize = 512;

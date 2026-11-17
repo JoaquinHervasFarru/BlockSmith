@@ -399,6 +399,192 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocksmith-agent"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-smart",
+ "rusqlite",
+]
+
+[[package]]
+name = "blocksmith-analyzer"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-fs-core",
+ "blocksmith-io",
+]
+
+[[package]]
+name = "blocksmith-app"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-crypto-layers",
+ "blocksmith-fs-core",
+ "blocksmith-io",
+ "blocksmith-smart",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-notification",
+]
+
+[[package]]
+name = "blocksmith-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blocksmith-fs-core",
+ "blocksmith-fs-hfsplus",
+ "blocksmith-io",
+ "blocksmith-partition",
+ "blocksmith-smart",
+ "clap",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "blocksmith-corruptor"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blocksmith-fs-hfsplus",
+ "blocksmith-io",
+ "clap",
+]
+
+[[package]]
+name = "blocksmith-crypto-layers"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "argon2",
+ "blocksmith-io",
+ "hmac",
+ "pbkdf2",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "xts-mode",
+ "zeroize",
+]
+
+[[package]]
+name = "blocksmith-fs-apfs"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-crypto-layers",
+ "blocksmith-fs-core",
+ "blocksmith-io",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "blocksmith-fs-core"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-io",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "blocksmith-fs-ext4"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-fs-core",
+ "blocksmith-io",
+ "crc32c",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "blocksmith-fs-hfsplus"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-fs-core",
+ "blocksmith-io",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "unicode-normalization",
+]
+
+[[package]]
+name = "blocksmith-fs-ntfs"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-fs-core",
+ "blocksmith-io",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "blocksmith-helper"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-fs-core",
+ "blocksmith-txwriter",
+]
+
+[[package]]
+name = "blocksmith-io"
+version = "0.1.0"
+dependencies = [
+ "bzip2",
+ "flate2",
+ "plist",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "blocksmith-partition"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-io",
+ "crc32fast",
+ "serde",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "blocksmith-rebuilder"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-fs-core",
+ "blocksmith-io",
+ "rmp-serde",
+ "sha2 0.10.9",
+ "zstd",
+]
+
+[[package]]
+name = "blocksmith-smart"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "blocksmith-txwriter"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-fs-core",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "brotli"
 version = "9.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -951,192 +1137,6 @@ dependencies = [
  "block-buffer 0.12.1",
  "const-oid",
  "crypto-common 0.2.2",
-]
-
-[[package]]
-name = "dirforge-agent"
-version = "0.1.0"
-dependencies = [
- "dirforge-smart",
- "rusqlite",
-]
-
-[[package]]
-name = "dirforge-analyzer"
-version = "0.1.0"
-dependencies = [
- "dirforge-fs-core",
- "dirforge-io",
-]
-
-[[package]]
-name = "dirforge-app"
-version = "0.1.0"
-dependencies = [
- "dirforge-crypto-layers",
- "dirforge-fs-core",
- "dirforge-io",
- "dirforge-smart",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-notification",
-]
-
-[[package]]
-name = "dirforge-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "dirforge-fs-core",
- "dirforge-fs-hfsplus",
- "dirforge-io",
- "dirforge-partition",
- "dirforge-smart",
- "serde_json",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "dirforge-corruptor"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "dirforge-fs-hfsplus",
- "dirforge-io",
-]
-
-[[package]]
-name = "dirforge-crypto-layers"
-version = "0.1.0"
-dependencies = [
- "aes",
- "argon2",
- "dirforge-io",
- "hmac",
- "pbkdf2",
- "serde",
- "sha2 0.10.9",
- "thiserror 2.0.21",
- "xts-mode",
- "zeroize",
-]
-
-[[package]]
-name = "dirforge-fs-apfs"
-version = "0.1.0"
-dependencies = [
- "dirforge-crypto-layers",
- "dirforge-fs-core",
- "dirforge-io",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dirforge-fs-core"
-version = "0.1.0"
-dependencies = [
- "dirforge-io",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dirforge-fs-ext4"
-version = "0.1.0"
-dependencies = [
- "crc32c",
- "dirforge-fs-core",
- "dirforge-io",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dirforge-fs-hfsplus"
-version = "0.1.0"
-dependencies = [
- "dirforge-fs-core",
- "dirforge-io",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "unicode-normalization",
-]
-
-[[package]]
-name = "dirforge-fs-ntfs"
-version = "0.1.0"
-dependencies = [
- "dirforge-fs-core",
- "dirforge-io",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dirforge-helper"
-version = "0.1.0"
-dependencies = [
- "dirforge-fs-core",
- "dirforge-txwriter",
-]
-
-[[package]]
-name = "dirforge-io"
-version = "0.1.0"
-dependencies = [
- "bzip2",
- "flate2",
- "plist",
- "serde",
- "sha2 0.10.9",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dirforge-partition"
-version = "0.1.0"
-dependencies = [
- "crc32fast",
- "dirforge-io",
- "serde",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "dirforge-rebuilder"
-version = "0.1.0"
-dependencies = [
- "dirforge-fs-core",
- "dirforge-io",
- "rmp-serde",
- "sha2 0.10.9",
- "zstd",
-]
-
-[[package]]
-name = "dirforge-smart"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "dirforge-txwriter"
-version = "0.1.0"
-dependencies = [
- "dirforge-fs-core",
- "serde",
- "sha2 0.10.9",
- "thiserror 2.0.21",
 ]
 
 [[package]]

@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-partition"
+name = "blocksmith-partition"
 description = "Detección de esquemas de partición (GPT, APM, MBR) y contenedores APFS."
 version.workspace = true
 edition.workspace = true
@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 crc32fast = "1.5.5"
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
 

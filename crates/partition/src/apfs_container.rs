@@ -1,7 +1,7 @@
 //! Detección de contenedores APFS: el superbloque `NXSB` empieza en el bloque 0
 //! de la partición, con la firma en el offset 32.
 
-use dirforge_io::{BlockDevice, IoResult};
+use blocksmith_io::{BlockDevice, IoResult};
 
 pub const NX_MAGIC: &[u8; 4] = b"NXSB";
 

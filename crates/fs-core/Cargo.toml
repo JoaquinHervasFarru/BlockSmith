@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-fs-core"
+name = "blocksmith-fs-core"
 description = "Contratos comunes a todos los sistemas de archivos."
 version.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 thiserror = "2.0.21"

@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-corruptor"
+name = "blocksmith-corruptor"
 description = "Inyecta daños deterministas en imágenes de prueba (solo fixtures)."
 version.workspace = true
 edition.workspace = true
@@ -13,5 +13,5 @@ workspace = true
 [dependencies]
 anyhow = "1.0.104"
 clap = { version = "4.5.61", features = ["derive"] }
-dirforge-fs-hfsplus = { version = "0.1.0", path = "../../crates/fs-hfsplus" }
-dirforge-io = { version = "0.1.0", path = "../../crates/io" }
+blocksmith-fs-hfsplus = { version = "0.1.0", path = "../../crates/fs-hfsplus" }
+blocksmith-io = { version = "0.1.0", path = "../../crates/io" }

@@ -1,7 +1,7 @@
 //! Tablas sintéticas construidas byte a byte siguiendo las especificaciones.
 
-use dirforge_io::MemoryDevice;
-use dirforge_partition::{detect, Hint, Scheme};
+use blocksmith_io::MemoryDevice;
+use blocksmith_partition::{detect, Hint, Scheme};
 
 const MB: usize = 1024 * 1024;
 

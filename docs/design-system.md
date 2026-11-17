@@ -14,7 +14,7 @@ consumen variables, nunca colores literales.
   acciones que escriben en disco (`.btn--write`), y semánticos `--ok`, `--warn`, `--crit`
   y `--neutral`, cada uno con su variante `-soft`.
 - **Tipografía:** Inter Variable para la interfaz y JetBrains Mono para hex, offsets, hashes
-  y códigos. Son autoalojadas, así que funcionan sin conexión en DirForge Live.
+  y códigos. Son autoalojadas, así que funcionan sin conexión en BlockSmith Live.
 - **Tema:** claro por defecto. El oscuro se aplica por `prefers-color-scheme` o con
   `<html data-theme="dark">`, y `data-theme="light"` fuerza el claro.
 - **Accesibilidad:** contraste AA, `:focus-visible` con anillo y estados con icono + texto.

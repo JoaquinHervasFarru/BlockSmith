@@ -1,6 +1,6 @@
 # Registro clean-room
 
-DirForge es un producto independiente. Comparte una idea funcional con otras utilidades de
+BlockSmith es un producto independiente. Comparte una idea funcional con otras utilidades de
 disco (reconstruir el directorio en lugar de parchearlo), pero su expresión es original:
 código, interfaz, textos, nombre, logotipo y paleta.
 
@@ -8,7 +8,7 @@ código, interfaz, textos, nombre, logotipo y paleta.
 
 1. **Sin ingeniería inversa** de productos de terceros. Del instalador aportado como referencia
    solo se identificó el formato contenedor (UDIF con un volumen HFS+), con la propia CLI
-   de DirForge. No se extrajo, desensambló ni reutilizó ningún binario, recurso, texto o icono.
+   de BlockSmith. No se extrajo, desensambló ni reutilizó ningún binario, recurso, texto o icono.
 2. **Fuentes permitidas:** especificaciones y documentación públicas (ver tabla).
 3. **Código GPL** (e2fsprogs, dislocker, smartmontools, apfsprogs…): solo como oráculo de
    pruebas o binario externo invocado. Nunca se copia ni se traduce.

@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-fs-apfs"
+name = "blocksmith-fs-apfs"
 description = "APFS: verificación y recuperación (niveles A/B); reconstrucción experimental (C)."
 version.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-crypto-layers = { version = "0.1.0", path = "../crypto-layers" }
-dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-crypto-layers = { version = "0.1.0", path = "../crypto-layers" }
+blocksmith-fs-core = { version = "0.1.0", path = "../fs-core" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 thiserror = "2.0.21"

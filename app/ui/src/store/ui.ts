@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export type ThemePref = "system" | "light" | "dark";
 
-const KEY = "dirforge.theme";
+const KEY = "blocksmith.theme";
 
 function readTheme(): ThemePref {
   try {

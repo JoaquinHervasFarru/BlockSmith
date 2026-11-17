@@ -3,8 +3,8 @@
 
 pub mod header;
 
-use dirforge_io::endian::{be_u16, be_u32};
-use dirforge_io::IoResult;
+use blocksmith_io::endian::{be_u16, be_u32};
+use blocksmith_io::IoResult;
 
 pub use header::HeaderRecord;
 

@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-io"
+name = "blocksmith-io"
 description = "Acceso a bloques: imágenes raw, UDIF/DMG y dispositivos (solo lectura). La escritura vive en DeviceWriter y solo la usa el helper."
 version.workspace = true
 edition.workspace = true

@@ -1,8 +1,8 @@
-//! Acceso a bloques para DirForge.
+//! Acceso a bloques para BlockSmith.
 //!
 //! Todo el motor lee a través del trait [`BlockDevice`]. Las implementaciones
 //! de este crate son **solo lectura**; la escritura vive en `txwriter` y solo
-//! la ejecuta `dirforge-helper` con privilegios.
+//! la ejecuta `blocksmith-helper` con privilegios.
 
 mod device;
 pub mod endian;

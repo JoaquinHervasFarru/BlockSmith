@@ -1,17 +1,17 @@
-//! dirforge-cli: herramienta de desarrollo y diagnóstico del motor.
+//! blocksmith-cli: herramienta de desarrollo y diagnóstico del motor.
 
 use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::{bail, Context};
 use clap::{Parser, Subcommand};
-use dirforge_fs_core::{Progress, Severity};
-use dirforge_fs_hfsplus::{scan_volume, Volume};
-use dirforge_io::{open_image, BlockDevice, Slice};
-use dirforge_partition::{detect, Hint, Scheme};
+use blocksmith_fs_core::{Progress, Severity};
+use blocksmith_fs_hfsplus::{scan_volume, Volume};
+use blocksmith_io::{open_image, BlockDevice, Slice};
+use blocksmith_partition::{detect, Hint, Scheme};
 
 #[derive(Parser)]
-#[command(name = "dirforge-cli", version, about = "Motor de DirForge desde la terminal (solo lectura)")]
+#[command(name = "blocksmith-cli", version, about = "Motor de BlockSmith desde la terminal (solo lectura)")]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -87,7 +87,7 @@ fn main() -> anyhow::Result<()> {
     match Cli::parse().cmd {
         Cmd::Probe { path } => {
             let dev = open_image(&path).with_context(|| format!("no se pudo abrir {}", path.display()))?;
-            let udif = dirforge_io::udif::has_koly_trailer(&dirforge_io::RawImage::open(&path)?)?;
+            let udif = blocksmith_io::udif::has_koly_trailer(&blocksmith_io::RawImage::open(&path)?)?;
             println!("{}", path.display());
             println!("  formato:     {}", if udif { "UDIF (.dmg)" } else { "raw" });
             println!("  tamaño:      {} ({} bytes)", human(dev.len()), dev.len());
@@ -170,8 +170,8 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_tree(cat: &dirforge_fs_hfsplus::CatalogSnapshot, id: u32, depth: usize) {
-    use dirforge_fs_hfsplus::unicode::from_hfs_name;
+fn print_tree(cat: &blocksmith_fs_hfsplus::CatalogSnapshot, id: u32, depth: usize) {
+    use blocksmith_fs_hfsplus::unicode::from_hfs_name;
     if let Some((k, _)) = cat.folders.get(&id) {
         println!("{}{}/", "  ".repeat(depth), from_hfs_name(&k.name));
     }

@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use dirforge_io::endian::{be_u16, be_u32};
-use dirforge_io::{BlockDevice, IoResult};
+use blocksmith_io::endian::{be_u16, be_u32};
+use blocksmith_io::{BlockDevice, IoResult};
 
 use crate::extents::{FORK_DATA, FORK_RSRC};
 use crate::fork::ForkReader;

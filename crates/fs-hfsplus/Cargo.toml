@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-fs-hfsplus"
+name = "blocksmith-fs-hfsplus"
 description = "Parser y reconstrucción de HFS+/HFSX (basado en Apple TN1150)."
 version.workspace = true
 edition.workspace = true
@@ -11,8 +11,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-fs-core = { version = "0.1.0", path = "../fs-core" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 thiserror = "2.0.21"

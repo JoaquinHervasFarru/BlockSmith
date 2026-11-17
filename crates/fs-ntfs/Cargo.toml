@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-fs-ntfs"
+name = "blocksmith-fs-ntfs"
 description = "NTFS: MFT, índices $I30, bitmap y $LogFile (solo lectura)."
 version.workspace = true
 edition.workspace = true
@@ -11,6 +11,6 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-fs-core = { version = "0.1.0", path = "../fs-core" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 thiserror = "2.0.21"

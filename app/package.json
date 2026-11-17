@@ -1,5 +1,5 @@
 {
-  "name": "dirforge-desktop",
+  "name": "blocksmith-desktop",
   "private": true,
   "workspaces": [
     "ui"

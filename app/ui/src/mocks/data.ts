@@ -6,7 +6,7 @@
  *  - SSD SATA en caja USB sin S.M.A.R.T. (HFS+ con directorio dañado y ya reconstruido).
  *  - HDD de NAS con sectores reasignados en aumento (ext4 sobre LUKS2, bloqueado).
  *  - HDD de PC fallando (NTFS con BitLocker protegido por TPM + clave de recuperación).
- *  - Memoria USB con DirForge Live.
+ *  - Memoria USB con BlockSmith Live.
  *  - Imágenes: .dmg con HFS+ y .img raw con ext4 + fscrypt.
  *  - Una transacción de escritura directa interrumpida (para la vista de recuperación).
  *
@@ -206,9 +206,9 @@ export const rebuilds: Rebuild[] = [
   {
     id: 1, sessionId: 1, status: "done", target: "new_image", experimental: false,
     startedAt: "2026-11-16T22:40:12Z", finishedAt: "2026-11-16T22:51:37Z", nodesBefore: 48_211, nodesAfter: 31_877,
-    recoveredCount: 41, lostCount: 0, outputPath: "/Volumes/Destino/dirforge/archivo-fotos-reparado.img",
+    recoveredCount: 41, lostCount: 0, outputPath: "/Volumes/Destino/blocksmith/archivo-fotos-reparado.img",
     outputSha256: "c41e0a9d7b3f25e8d6014ab9f3c2e7d0185b6fa94c2d3e81a07b5f9c6d2e4a13", verified: true,
-    backupMetadataPath: "/Volumes/Destino/dirforge/backups/archivo-fotos-20261116.meta.zst",
+    backupMetadataPath: "/Volumes/Destino/blocksmith/backups/archivo-fotos-20261116.meta.zst",
   },
   {
     id: 2, sessionId: 2, status: "done", target: "new_image", experimental: false,
@@ -221,7 +221,7 @@ export const rebuilds: Rebuild[] = [
     id: 3, sessionId: 5, status: "failed", target: "in_place", experimental: false,
     startedAt: "2026-11-17T08:05:00Z", finishedAt: null, nodesBefore: 48_211, nodesAfter: 31_877,
     recoveredCount: 41, lostCount: 0, outputPath: null, outputSha256: null, verified: false,
-    backupMetadataPath: "/Users/usuario/DirForge/backups/archivo-fotos-20261117.meta.zst",
+    backupMetadataPath: "/Users/usuario/BlockSmith/backups/archivo-fotos-20261117.meta.zst",
   },
 ];
 
@@ -243,7 +243,7 @@ export const diffEntries: DiffEntry[] = [
 export const writeTransactions: WriteTransaction[] = [
   {
     id: 1, rebuildId: 3, devicePath: "/dev/disk4s2", deviceSerial: null, status: "interrupted",
-    undoLogPath: "/Users/usuario/DirForge/undo/tx-0001.undo", blocksTotal: 2_980, blocksWritten: 1_412,
+    undoLogPath: "/Users/usuario/BlockSmith/undo/tx-0001.undo", blocksTotal: 2_980, blocksWritten: 1_412,
     startedAt: "2026-11-17T08:06:10Z", finishedAt: null, helperVersion: "0.1.0",
   },
 ];
@@ -343,7 +343,7 @@ export const alerts: Alert[] = [
 
 // ─────────────────────────────────────────────────────────────── Informes, medios y ajustes
 export const reports: Report[] = [
-  { id: 1, sessionId: 1, format: "html", path: "/Volumes/Destino/dirforge/informes/archivo-fotos-20261116.html", generatedAt: "2026-11-16T22:52:00Z" },
+  { id: 1, sessionId: 1, format: "html", path: "/Volumes/Destino/blocksmith/informes/archivo-fotos-20261116.html", generatedAt: "2026-11-16T22:52:00Z" },
   { id: 2, sessionId: 2, format: "html", path: "/Volumes/Archivo/imagenes/informes/fotos-2019.html", generatedAt: "2026-09-04T11:40:00Z" },
   { id: 3, sessionId: 2, format: "json", path: "/Volumes/Archivo/imagenes/informes/fotos-2019.json", generatedAt: "2026-09-04T11:40:00Z" },
 ];
@@ -356,7 +356,7 @@ export const bootMedia: BootMedia[] = [
 ];
 
 export const settings: Settings = {
-  outputDir: "/Volumes/Destino/dirforge",
+  outputDir: "/Volumes/Destino/blocksmith",
   language: "es",
   theme: "system",
   logLevel: "info",

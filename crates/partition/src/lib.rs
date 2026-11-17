@@ -8,7 +8,7 @@ pub mod apm;
 pub mod gpt;
 pub mod mbr;
 
-use dirforge_io::{BlockDevice, IoResult};
+use blocksmith_io::{BlockDevice, IoResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

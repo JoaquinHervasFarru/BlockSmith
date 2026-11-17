@@ -2,7 +2,7 @@
 
 use std::cmp::Ordering;
 
-use dirforge_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
+use blocksmith_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
 use serde::Serialize;
 
 use crate::unicode::{compare_binary, compare_folded};
@@ -72,7 +72,7 @@ impl CatalogKey {
     }
 }
 
-/// Campos comunes de carpetas y archivos que DirForge conserva tal cual.
+/// Campos comunes de carpetas y archivos que BlockSmith conserva tal cual.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CommonInfo {
     pub flags: u16,

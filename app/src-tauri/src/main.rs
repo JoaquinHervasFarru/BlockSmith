@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    dirforge_app_lib::run()
+    blocksmith_app_lib::run()
 }

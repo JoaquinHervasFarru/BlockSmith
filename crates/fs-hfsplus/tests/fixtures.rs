@@ -1,12 +1,12 @@
 //! Fixtures generadas byte a byte, validadas con un verificador independiente
-//! (`fsck.hfsplus`, si está instalado) y con el propio escaneo de DirForge.
+//! (`fsck.hfsplus`, si está instalado) y con el propio escaneo de BlockSmith.
 
 use std::process::Command;
 
-use dirforge_fs_core::{Progress, Severity};
-use dirforge_fs_hfsplus::fixtures::{apply_damage, build_volume, sample_tree, BuildOptions, Damage};
-use dirforge_fs_hfsplus::{scan_volume, HfsScan, Volume};
-use dirforge_io::MemoryDevice;
+use blocksmith_fs_core::{Progress, Severity};
+use blocksmith_fs_hfsplus::fixtures::{apply_damage, build_volume, sample_tree, BuildOptions, Damage};
+use blocksmith_fs_hfsplus::{scan_volume, HfsScan, Volume};
+use blocksmith_io::MemoryDevice;
 
 struct Quiet;
 impl Progress for Quiet {
@@ -53,7 +53,7 @@ fn clean_volume_passes_both_checkers() {
         assert!(s.result.findings.is_empty(), "{opts:?}: {:#?}", s.result.findings);
         assert_eq!(s.result.stats.files, 42);
         assert_eq!(s.result.stats.folders, 8);
-        assert_eq!(s.result.info.name.as_deref(), Some("DirForge Test"));
+        assert_eq!(s.result.info.name.as_deref(), Some("BlockSmith Test"));
         assert_eq!(
             s.catalog.path_of(*s.catalog.files.iter().find(|(_, (k, _))| k.name.len() == 13 && k.name[0] == b'I' as u16).unwrap().0).unwrap(),
             "/Fotos/2023/Viaje Lisboa/IMG_4401.HEIC"

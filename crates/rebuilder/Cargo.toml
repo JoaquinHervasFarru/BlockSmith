@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-rebuilder"
+name = "blocksmith-rebuilder"
 description = "Construcción del nuevo árbol, empaquetado de nodos, diff y escritura de imagen."
 version.workspace = true
 edition.workspace = true
@@ -11,8 +11,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-fs-core = { version = "0.1.0", path = "../fs-core" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 rmp-serde = "1.3.0"
 sha2 = "0.10.9"
 zstd = "0.14.4"

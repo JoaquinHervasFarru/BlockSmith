@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-fs-ext4"
+name = "blocksmith-fs-ext4"
 description = "ext4: superbloque, grupos, inodos, extents, htree y jbd2."
 version.workspace = true
 edition.workspace = true
@@ -12,6 +12,6 @@ workspace = true
 
 [dependencies]
 crc32c = "0.6.9"
-dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
-dirforge-io = { version = "0.1.0", path = "../io" }
+blocksmith-fs-core = { version = "0.1.0", path = "../fs-core" }
+blocksmith-io = { version = "0.1.0", path = "../io" }
 thiserror = "2.0.21"

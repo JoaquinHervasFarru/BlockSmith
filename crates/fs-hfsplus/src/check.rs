@@ -9,10 +9,10 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use dirforge_fs_core::{
+use blocksmith_fs_core::{
     Finding, FsError, FsInfo, FsKind, FsResult, ObjectType, Progress, ScanResult, ScanStats, Severity,
 };
-use dirforge_io::endian::{be_u32, be_u64};
+use blocksmith_io::endian::{be_u32, be_u64};
 use serde::Serialize;
 use serde_json::json;
 

@@ -1,8 +1,8 @@
 //! Master Boot Record: cuatro entradas primarias en el offset 446 y firma 0x55AA.
 //! Las particiones extendidas (0x05/0x0F) se listan pero no se recorren todavía.
 
-use dirforge_io::endian::le_u32;
-use dirforge_io::{BlockDevice, IoResult};
+use blocksmith_io::endian::le_u32;
+use blocksmith_io::{BlockDevice, IoResult};
 
 use crate::{Hint, Partition, PartitionTable, Scheme};
 

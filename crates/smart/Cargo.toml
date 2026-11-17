@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-smart"
+name = "blocksmith-smart"
 description = "Lectura de S.M.A.R.T. (ATA) y Health log (NVMe) con backends por plataforma."
 version.workspace = true
 edition.workspace = true

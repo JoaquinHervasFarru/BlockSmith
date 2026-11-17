@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-txwriter"
+name = "blocksmith-txwriter"
 description = "Escritura transaccional con undo log, verificación y rollback."
 version.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
+blocksmith-fs-core = { version = "0.1.0", path = "../fs-core" }
 serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.10.9"
 thiserror = "2.0.21"

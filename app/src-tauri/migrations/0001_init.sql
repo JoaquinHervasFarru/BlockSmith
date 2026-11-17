@@ -1,4 +1,4 @@
--- DirForge · esquema inicial (plan técnico v3, §8)
+-- BlockSmith · esquema inicial (plan técnico v3, §8)
 -- Nunca se almacenan claves, contraseñas ni claves de recuperación.
 
 CREATE TABLE disks (

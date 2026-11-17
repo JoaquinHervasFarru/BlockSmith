@@ -1,14 +1,14 @@
-//! dirforge-corruptor: genera fixtures HFS+ y les aplica daños deterministas.
+//! blocksmith-corruptor: genera fixtures HFS+ y les aplica daños deterministas.
 //! Solo escribe archivos de imagen nuevos; nunca opera sobre dispositivos.
 
 use std::path::PathBuf;
 
 use anyhow::{bail, Context};
 use clap::{Parser, Subcommand};
-use dirforge_fs_hfsplus::fixtures::{apply_damage, build_volume, sample_tree, BuildOptions, Damage};
+use blocksmith_fs_hfsplus::fixtures::{apply_damage, build_volume, sample_tree, BuildOptions, Damage};
 
 #[derive(Parser)]
-#[command(name = "dirforge-corruptor", version, about = "Fixtures HFS+ con daños controlados")]
+#[command(name = "blocksmith-corruptor", version, about = "Fixtures HFS+ con daños controlados")]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,

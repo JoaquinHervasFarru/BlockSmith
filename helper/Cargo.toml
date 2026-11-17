@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-helper"
+name = "blocksmith-helper"
 description = "Helper privilegiado: bloqueo/desmontaje y escritura transaccional. Superficie mínima."
 version.workspace = true
 edition.workspace = true
@@ -11,5 +11,5 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-fs-core = { version = "0.1.0", path = "../crates/fs-core" }
-dirforge-txwriter = { version = "0.1.0", path = "../crates/txwriter" }
+blocksmith-fs-core = { version = "0.1.0", path = "../crates/fs-core" }
+blocksmith-txwriter = { version = "0.1.0", path = "../crates/txwriter" }

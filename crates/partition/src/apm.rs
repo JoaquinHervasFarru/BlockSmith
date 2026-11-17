@@ -1,7 +1,7 @@
 //! Apple Partition Map: bloque 0 con firma `ER` y entradas `PM` desde el bloque 1.
 
-use dirforge_io::endian::{be_u16, be_u32};
-use dirforge_io::{BlockDevice, IoResult};
+use blocksmith_io::endian::{be_u16, be_u32};
+use blocksmith_io::{BlockDevice, IoResult};
 
 use crate::{Hint, Partition, PartitionTable, Scheme};
 

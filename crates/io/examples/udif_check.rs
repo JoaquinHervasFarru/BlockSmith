@@ -1,5 +1,5 @@
 //! Comprobación rápida: descomprime un .dmg completo y muestra tamaño y firma en el offset 1024.
-use dirforge_io::{BlockDevice, RawImage, UdifImage};
+use blocksmith_io::{BlockDevice, RawImage, UdifImage};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = std::env::args().nth(1).ok_or("uso: udif_check <imagen.dmg>")?;

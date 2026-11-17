@@ -1,8 +1,8 @@
 //! GUID Partition Table (UEFI). Valida los CRC32 de cabecera y entradas y, si la
 //! cabecera principal está dañada, recurre a la de respaldo (último LBA).
 
-use dirforge_io::endian::{le_u16, le_u32, le_u64};
-use dirforge_io::{BlockDevice, IoResult};
+use blocksmith_io::endian::{le_u16, le_u32, le_u64};
+use blocksmith_io::{BlockDevice, IoResult};
 
 use crate::{Hint, Partition, PartitionTable, Scheme};
 

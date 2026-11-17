@@ -1,9 +1,9 @@
-# DirForge
+# BlockSmith
 
 Verificación, recuperación y reconstrucción de directorios de disco para HFS+, APFS, NTFS y ext4,
 con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.
 
-Plan técnico aprobado: [`docs/DirForge-Plan-Tecnico-v3.pdf`](docs/DirForge-Plan-Tecnico-v3.pdf).
+Plan técnico aprobado: [`docs/BlockSmith-Plan-Tecnico-v3.pdf`](docs/BlockSmith-Plan-Tecnico-v3.pdf).
 Estado actual: **F1 completada** — lectura de imágenes (raw y DMG), particiones (GPT/APM/MBR)
 y escaneo de solo lectura de volúmenes HFS+/HFSX con 42 tipos de hallazgo.
 
@@ -42,19 +42,19 @@ cargo build --workspace && cargo test --workspace
 Identificar una imagen desde la CLI:
 
 ```bash
-cargo run -p dirforge-cli -- probe ruta/a/imagen.dmg
+cargo run -p blocksmith-cli -- probe ruta/a/imagen.dmg
 ```
 
 Escanear un volumen HFS+ (solo lectura; `--json` para salida estructurada, `--tree` para ver el árbol):
 
 ```bash
-cargo run -p dirforge-cli -- scan ruta/a/imagen.img
+cargo run -p blocksmith-cli -- scan ruta/a/imagen.img
 ```
 
 Generar las fixtures de prueba (volumen sano, variante HFSX y una imagen por cada tipo de daño):
 
 ```bash
-cargo run -p dirforge-corruptor -- gen --out fixtures/hfsplus
+cargo run -p blocksmith-corruptor -- gen --out fixtures/hfsplus
 ```
 
 Los tests de `fs-hfsplus` validan las fixtures con `fsck.hfsplus` si está instalado

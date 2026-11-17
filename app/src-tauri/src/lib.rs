@@ -13,7 +13,7 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
-            let db = db::Database::open(&dir.join("dirforge.sqlite3"))?;
+            let db = db::Database::open(&dir.join("blocksmith.sqlite3"))?;
             app.manage(db);
             app.manage(jobs::JobQueue::default());
             Ok(())
@@ -23,5 +23,5 @@ pub fn run() {
             commands::db_status,
         ])
         .run(tauri::generate_context!())
-        .expect("error al iniciar DirForge");
+        .expect("error al iniciar BlockSmith");
 }

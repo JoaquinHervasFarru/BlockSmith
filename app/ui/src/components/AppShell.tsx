@@ -51,7 +51,7 @@ export function AppShell() {
       <aside className="sidebar">
         <div className="sidebar__brand">
           <img src="/favicon.svg" alt="" />
-          <div>DirForge<small>Verificación y reconstrucción de discos</small></div>
+          <div>BlockSmith<small>Verificación y reconstrucción de discos</small></div>
         </div>
         {groups.map((g) => (
           <nav key={g.label} aria-label={g.label}>

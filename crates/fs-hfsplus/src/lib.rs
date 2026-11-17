@@ -15,11 +15,11 @@ pub mod volume_header;
 
 use std::path::Path;
 
-use dirforge_fs_core::{
+use blocksmith_fs_core::{
     Capabilities, FileSystem, FsError, FsInfo, FsKind, FsResult, RebuildPlan, RecoverResult, ScanContext, ScanResult,
     Support,
 };
-use dirforge_io::BlockDevice;
+use blocksmith_io::BlockDevice;
 
 pub use check::{scan_volume, CatalogSnapshot, HfsScan};
 pub use volume::{locate, Volume, VOLUME_HEADER_OFFSET};

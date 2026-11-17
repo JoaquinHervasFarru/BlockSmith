@@ -19,7 +19,7 @@ const router = createHashRouter([
       { path: "alertas", element: <Placeholder title="Alertas y reglas" phase="F4" description="Historial de alertas y umbrales del agente." /> },
       { path: "transacciones", element: <Placeholder title="Transacciones de escritura" phase="F5" description="Revertir o reverificar escrituras directas interrumpidas." /> },
       { path: "cifrado", element: <Placeholder title="Cabeceras de cifrado" phase="F6b" description="Estado de las copias de cabecera de BitLocker, LUKS y Core Storage." /> },
-      { path: "arranque", element: <Placeholder title="Medio de arranque" phase="F9" description="Crear un USB DirForge Live o preparar un disco externo con macOS." /> },
+      { path: "arranque", element: <Placeholder title="Medio de arranque" phase="F9" description="Crear un USB BlockSmith Live o preparar un disco externo con macOS." /> },
       { path: "historial", element: <Placeholder title="Historial" phase="F3" description="Sesiones e informes anteriores." /> },
       { path: "ajustes", element: <Placeholder title="Ajustes" phase="F3" description="Carpeta de salida, idioma, registros y tema." /> },
     ],

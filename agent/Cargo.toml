@@ -1,5 +1,5 @@
 [package]
-name = "dirforge-agent"
+name = "blocksmith-agent"
 description = "Agente en segundo plano: sondeo S.M.A.R.T. y alertas."
 version.workspace = true
 edition.workspace = true
@@ -11,5 +11,5 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-dirforge-smart = { version = "0.1.0", path = "../crates/smart" }
+blocksmith-smart = { version = "0.1.0", path = "../crates/smart" }
 rusqlite = { version = "0.40.2", features = ["bundled"] }

@@ -1,4 +1,4 @@
-//! Contratos comunes a todos los sistemas de archivos de DirForge.
+//! Contratos comunes a todos los sistemas de archivos de BlockSmith.
 //!
 //! Cada formato (HFS+, APFS, NTFS, ext4) implementa [`FileSystem`] y declara
 //! sus [`Capabilities`]; la UI habilita acciones según ellas.
@@ -8,7 +8,7 @@ mod plan;
 
 use std::path::Path;
 
-use dirforge_io::BlockDevice;
+use blocksmith_io::BlockDevice;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -91,7 +91,7 @@ pub struct ScanContext<'a> {
 #[derive(Debug, Error)]
 pub enum FsError {
     #[error(transparent)]
-    Io(#[from] dirforge_io::IoError),
+    Io(#[from] blocksmith_io::IoError),
     #[error("estructura no válida: {0}")]
     Invalid(String),
     #[error("operación cancelada")]

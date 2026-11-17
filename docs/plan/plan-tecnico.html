@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>DirForge — Plan técnico v3</title>
+<title>BlockSmith — Plan técnico v3</title>
 <style>
   @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
   :root {
@@ -60,12 +60,13 @@
 <section class="cover">
   <div>
     <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
-      <rect x="2" y="2" width="60" height="60" rx="14" fill="#3651d4"/>
-      <path d="M18 20h16a12 12 0 0 1 0 24H18z" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
-      <path d="M40 24l8-6M42 32h9M40 40l8 6" stroke="#ffb27a" stroke-width="4" stroke-linecap="round"/>
-    </svg>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4763ea"/><stop offset="1" stop-color="#2a3fb0"/></linearGradient></defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+  <path d="M17 15v34M17 15h11a8.5 8.5 0 0 1 0 17H17M17 32h13a8.5 8.5 0 0 1 0 17H17" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M46 20l6-5M48 28h6M46 36l6 4" stroke="#ffb27a" stroke-width="3.5" stroke-linecap="round"/>
+</svg>
     <p class="kicker" style="margin-top:10mm">Plan técnico · versión 3 (consolidada)</p>
-    <h1>DirForge</h1>
+    <h1>BlockSmith</h1>
     <p class="sub">Utilidad multiplataforma de verificación, recuperación y reconstrucción de estructuras de directorio
       para HFS+, APFS, NTFS y ext4, con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.</p>
   </div>
@@ -75,7 +76,7 @@
       <tr><td>Fecha</td><td>17 de noviembre de 2026</td></tr>
       <tr><td>Estado</td><td>Aprobado: consolida v1 + v2 + ampliación de cifrado</td></tr>
       <tr><td>Stack</td><td>Rust (motor) · Tauri 2 · React + TypeScript · SQLite</td></tr>
-      <tr><td>Nombre</td><td>«DirForge», nombre de trabajo, original e independiente</td></tr>
+      <tr><td>Nombre</td><td>«BlockSmith», nombre de trabajo, original e independiente</td></tr>
     </table>
   </div>
 </section>
@@ -101,7 +102,7 @@
 </section>
 
 <h2>1. Visión y principios</h2>
-<p>DirForge toma como inspiración funcional una categoría de utilidades de disco ya conocida: en vez de parchear el
+<p>BlockSmith toma como inspiración funcional una categoría de utilidades de disco ya conocida: en vez de parchear el
   directorio dañado, <strong>recorre el volumen, recupera toda la información de archivos y carpetas, construye un directorio
   nuevo y optimizado, lo compara con el original y solo entonces lo aplica</strong>. Ese enfoque se aplica a cuatro
   sistemas de archivos y se acompaña de herramientas de diagnóstico del hardware.</p>
@@ -123,7 +124,7 @@
   <tr><td>APFS</td><td>Niveles A (verificación) y B (recuperación) en producción. Nivel C (reconstrucción) experimental y al principio solo sobre imágenes. Nivel D (cifrado) solo en discos externos y Macs Intel sin T2.</td></tr>
   <tr><td>Cifrado</td><td>Capa genérica <code>crypto-layers</code>: BitLocker, LUKS1/2, Core Storage, APFS, fscrypt (sin desbloqueo) y VeraCrypt (después del MVP).</td></tr>
   <tr><td>S.M.A.R.T.</td><td>Nativo en Linux (<code>SG_IO</code>/NVMe ioctl) y Windows (<code>IOCTL_STORAGE_*</code>). En macOS, <code>smartctl</code> invocado como binario externo (sin enlazarlo).</td></tr>
-  <tr><td>Arranque externo</td><td>USB Linux Live con la app en modo kiosk. En Apple Silicon, asistente para instalar macOS en un disco externo con DirForge.</td></tr>
+  <tr><td>Arranque externo</td><td>USB Linux Live con la app en modo kiosk. En Apple Silicon, asistente para instalar macOS en un disco externo con BlockSmith.</td></tr>
 </table>
 
 <h2>3. Funcionalidades</h2>
@@ -152,7 +153,7 @@
 <h3>3.3 Monitorización S.M.A.R.T.</h3>
 <ul>
   <li><strong>SATA:</strong> atributos, umbrales y valores worst. <strong>NVMe:</strong> Health log (critical warning, percentage used, media errors, temperatura).</li>
-  <li><strong>Agente en segundo plano</strong> (<code>dirforge-agent</code>): sondeo periódico, histórico, tendencias, reglas configurables y notificaciones del sistema.</li>
+  <li><strong>Agente en segundo plano</strong> (<code>blocksmith-agent</code>): sondeo periódico, histórico, tendencias, reglas configurables y notificaciones del sistema.</li>
   <li><strong>Integración con la reparación:</strong> si el disco está fallando, se bloquea la escritura directa y se recomienda clonar o recuperar primero.</li>
   <li><strong>Limitación:</strong> muchas cajas USB no transmiten S.M.A.R.T. En ese caso se muestra «No disponible».</li>
 </ul>
@@ -160,8 +161,8 @@
 <h3>3.4 Arranque desde disco externo</h3>
 <table>
   <tr><th style="width:26%">Destino</th><th>Solución</th></tr>
-  <tr><td>PC (UEFI/BIOS) y Mac Intel</td><td><strong>DirForge Live</strong>: Linux mínimo (Debian, construido con mkosi/live-build) que arranca la app en modo kiosk. Los Mac con T2 requieren permitir el arranque externo.</td></tr>
-  <tr><td>Apple Silicon</td><td>No arranca un Linux genérico, y el modo «Compartir disco» trabaja por SMB, a nivel de archivos. Se ofrece un asistente para instalar macOS en un disco externo y copiar DirForge en él.</td></tr>
+  <tr><td>PC (UEFI/BIOS) y Mac Intel</td><td><strong>BlockSmith Live</strong>: Linux mínimo (Debian, construido con mkosi/live-build) que arranca la app en modo kiosk. Los Mac con T2 requieren permitir el arranque externo.</td></tr>
+  <tr><td>Apple Silicon</td><td>No arranca un Linux genérico, y el modo «Compartir disco» trabaja por SMB, a nivel de archivos. Se ofrece un asistente para instalar macOS en un disco externo y copiar BlockSmith en él.</td></tr>
 </table>
 
 <h3>3.5 NTFS</h3>
@@ -208,7 +209,7 @@
 
 <h2 class="page-break">6. Arquitectura del sistema</h2>
 <pre>
-┌─────────────── UI (Tauri + React) ───────────────┐      ┌──────── dirforge-agent ────────┐
+┌─────────────── UI (Tauri + React) ───────────────┐      ┌──────── blocksmith-agent ────────┐
 │ vistas · estado (Zustand) · eventos de progreso   │      │ sondeo S.M.A.R.T. · alertas    │
 └──────────────▲────────────────────────────────────┘      └───────────▲────────────────────┘
                │ IPC (comandos + eventos)                               │ SQLite
@@ -217,7 +218,7 @@
 └──────▲──────────────▲──────────────▲───────────────▲─────────────────▲───────────────────┘
        │              │              │               │                 │ IPC autenticado
    ┌───┴──────┐ ┌─────┴───────┐ ┌────┴─────┐  ┌──────┴─────┐  ┌────────┴─────────────────┐
-   │ io       │ │ fs-hfsplus  │ │ analyzer │  │ rebuilder  │  │ dirforge-helper (root)   │
+   │ io       │ │ fs-hfsplus  │ │ analyzer │  │ rebuilder  │  │ blocksmith-helper (root)   │
    │ partition│ │ fs-apfs     │ │          │  │            │  │ bloqueo/desmontaje       │
    │ crypto-  │ │ fs-ntfs     │ │          │  │            │  │ txwriter · undo · verify │
    │  layers  │ │ fs-ext4     │ └──────────┘  └────────────┘  └──────────────────────────┘
@@ -241,7 +242,7 @@ trait EncryptionScheme {
 
 <h2>7. Estructura de carpetas</h2>
 <pre>
-dirforge/
+blocksmith/
 ├── Cargo.toml                 # workspace
 ├── crates/
 │   ├── io/                    # BlockDevice, RawImage, UdifImage, Device (RO), DeviceWriter
@@ -256,9 +257,9 @@ dirforge/
 │   ├── analyzer/              # comprobaciones comunes, scavenger
 │   ├── rebuilder/             # tree_builder, node_packer, diff, image_writer
 │   ├── txwriter/              # undo log, orden de escritura, verificación, rollback
-│   └── cli/                   # dirforge-cli scan|recover|rebuild|diff|report|smart
-├── helper/                    # dirforge-helper (privilegiado)
-├── agent/                     # dirforge-agent (S.M.A.R.T.)
+│   └── cli/                   # blocksmith-cli scan|recover|rebuild|diff|report|smart
+├── helper/                    # blocksmith-helper (privilegiado)
+├── agent/                     # blocksmith-agent (S.M.A.R.T.)
 ├── app/
 │   ├── package.json           # workspace npm + Tauri CLI
 │   ├── src-tauri/             # commands/, jobs.rs, db/, migrations/
@@ -384,7 +385,7 @@ disks ─1:N─ sources ─1:N─ volumes ─1:N─ sessions ─1:N─ findings
 </table>
 
 <h2>14. Propiedad intelectual (clean-room)</h2>
-<div class="info">DirForge es un producto independiente. Comparte una <em>idea funcional</em> (reconstruir directorios en lugar de parchearlos),
+<div class="info">BlockSmith es un producto independiente. Comparte una <em>idea funcional</em> (reconstruir directorios en lugar de parchearlos),
   y las ideas y los métodos no están protegidos por derechos de autor. Su expresión (código, interfaz, textos, iconos, marca) es original.</div>
 <ul>
   <li><strong>Sin ingeniería inversa:</strong> el instalador aportado no se ha desensamblado ni extraído. Solo se identificó su formato contenedor (UDIF / HFS+). No se reutiliza ningún binario, recurso, texto ni icono suyo.</li>

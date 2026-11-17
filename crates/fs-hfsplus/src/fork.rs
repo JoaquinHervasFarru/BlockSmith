@@ -1,6 +1,6 @@
 //! Lectura del contenido lógico de un fork a través de su lista de extents.
 
-use dirforge_io::{BlockDevice, IoError, IoResult};
+use blocksmith_io::{BlockDevice, IoError, IoResult};
 
 use crate::volume_header::Extent;
 
