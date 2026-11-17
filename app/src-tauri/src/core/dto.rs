@@ -191,6 +191,9 @@ pub struct SettingsDto {
     /// Leer la salud de los discos al abrir la app si la última lectura es antigua.
     #[serde(default = "default_true")]
     pub health_check_on_start: bool,
+    /// Carpeta de los registros de deshacer (vacío = carpeta de datos de la app).
+    #[serde(default)]
+    pub undo_dir: String,
 }
 
 fn default_true() -> bool {

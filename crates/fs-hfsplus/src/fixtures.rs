@@ -497,7 +497,7 @@ pub fn apply_damage(img: &mut [u8], damage: Damage) -> Result<(), String> {
                     let data = off + 2 + be_u16(img, off) as usize;
                     if be_u16(img, data) == crate::catalog::rtype::FOLDER && be_u32(img, data + 8) != cnid::ROOT_FOLDER {
                         let v = be_u32(img, data + 4);
-                        if best.map_or(true, |b| v > b.2) {
+                        if best.is_none_or(|b| v > b.2) {
                             best = Some((data, be_u32(img, data + 8), v));
                         }
                     }

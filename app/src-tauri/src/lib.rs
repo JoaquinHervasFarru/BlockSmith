@@ -24,6 +24,10 @@ pub fn run() {
                 .unwrap_or_else(|_| data_dir.clone())
                 .join("BlockSmith");
             let core = Arc::new(core::Core::new(db, data_dir, output_dir));
+            // Transacciones que quedaron a medias si la app se cerró escribiendo.
+            if let Err(e) = core.detect_interrupted() {
+                eprintln!("no se pudieron revisar las transacciones pendientes: {e}");
+            }
             app.manage(core.clone());
             app.manage(jobs::JobManager::default());
 
@@ -70,6 +74,12 @@ pub fn run() {
             commands::ack_alert,
             commands::get_alert_rules,
             commands::set_alert_rule,
+            commands::preflight,
+            commands::start_repair,
+            commands::list_transactions,
+            commands::start_tx_rollback,
+            commands::start_tx_complete,
+            commands::list_open_devices,
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar BlockSmith");

@@ -15,6 +15,7 @@ use serde::Serialize;
 pub const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/0001_init.sql"),
     include_str!("../migrations/0002_health.sql"),
+    include_str!("../migrations/0003_transactions.sql"),
 ];
 
 /// Identificador de la app (igual que en tauri.conf.json): define la carpeta de datos.
@@ -111,6 +112,14 @@ mod tests {
         }
         let rules: i64 = db.conn().query_row("SELECT COUNT(*) FROM alert_rules", [], |r| r.get(0)).unwrap();
         assert_eq!(rules, 6);
+        // 0003: varias transacciones por reconstrucción.
+        let c = db.conn();
+        c.execute_batch("INSERT INTO sources (kind, path, size_bytes, added_at) VALUES ('raw_image', '/x', 1, 't');
+            INSERT INTO volumes (source_id, fs_type) VALUES (1, 'hfsplus');
+            INSERT INTO sessions (volume_id, status, started_at, app_version) VALUES (1, 'scanned', 't', '0');
+            INSERT INTO rebuilds (session_id, status, target, started_at) VALUES (1, 'planned', 'in_place', 't');
+            INSERT INTO write_transactions (rebuild_id, device_path, status, undo_log_path, blocks_total, started_at, helper_version, mode)
+              VALUES (1, '/x', 'rolled_back', '/u1', 3, 't', '0', 'in_process'), (1, '/x', 'finalized', '/u2', 3, 't', '0', 'helper');").unwrap();
     }
 
     #[test]
@@ -127,7 +136,7 @@ mod tests {
             tx.commit().unwrap();
         }
         let db = Database::open(&path).unwrap();
-        assert_eq!(db.status().unwrap().schema_version, 2);
+        assert_eq!(db.status().unwrap().schema_version, MIGRATIONS.len() as i64);
         db.set_setting("x", "1").unwrap();
         assert_eq!(db.setting("x").unwrap().as_deref(), Some("1"));
         let _ = std::fs::remove_dir_all(&dir);

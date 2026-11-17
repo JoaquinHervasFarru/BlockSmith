@@ -8,6 +8,9 @@ use sha2::{Digest, Sha256};
 
 pub const JOB_VERSION: u32 = 1;
 
+/// Escritura decodificada: (offset relativo al volumen, fase, etiqueta, datos).
+pub type DecodedWrite = (u64, WritePhase, String, Vec<u8>);
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct JobWrite {
@@ -77,7 +80,7 @@ impl Job {
     }
 
     /// Decodifica las escrituras y comprueba que el hash coincide con el declarado.
-    pub fn decode(&self) -> Result<Vec<(u64, WritePhase, String, Vec<u8>)>, String> {
+    pub fn decode(&self) -> Result<Vec<DecodedWrite>, String> {
         if self.version != JOB_VERSION {
             return Err(format!("versión de trabajo {} no compatible", self.version));
         }

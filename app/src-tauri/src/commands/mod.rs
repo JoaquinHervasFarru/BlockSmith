@@ -214,3 +214,76 @@ pub async fn get_alert_rules(core: State<'_, Arc<Core>>) -> Cmd<Vec<Rule>> {
 pub async fn set_alert_rule(core: State<'_, Arc<Core>>, rule: Rule) -> Cmd<Vec<Rule>> {
     Ok(core.set_alert_rule(&rule)?)
 }
+
+// ── Escritura directa (F5) ────────────────────────────────────────────────
+
+use crate::core::repair::{PreflightDto, TxDto};
+
+#[tauri::command]
+pub async fn preflight(core: State<'_, Arc<Core>>, rebuild_id: i64) -> Cmd<PreflightDto> {
+    Ok(core.preflight(rebuild_id)?)
+}
+
+#[tauri::command]
+pub async fn start_repair(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, rebuild_id: i64, confirm: String) -> Cmd<u64> {
+    let core = core.inner().clone();
+    Ok(jobs.spawn(app, "repair", move |p| {
+        let r = core.repair_in_place(rebuild_id, &confirm, p)?;
+        let mut v = serde_json::to_value(r).unwrap_or_default();
+        v["rebuildId"] = json!(rebuild_id);
+        Ok(v)
+    }))
+}
+
+#[tauri::command]
+pub async fn list_transactions(core: State<'_, Arc<Core>>) -> Cmd<Vec<TxDto>> {
+    Ok(core.transactions()?)
+}
+
+#[tauri::command]
+pub async fn start_tx_rollback(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, tx_id: i64, force: bool) -> Cmd<u64> {
+    let core = core.inner().clone();
+    Ok(jobs.spawn(app, "rollback", move |p| Ok(serde_json::to_value(core.rollback_tx(tx_id, force, p)?).unwrap_or_default())))
+}
+
+#[tauri::command]
+pub async fn start_tx_complete(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, tx_id: i64) -> Cmd<u64> {
+    let core = core.inner().clone();
+    Ok(jobs.spawn(app, "complete", move |p| Ok(serde_json::to_value(core.complete_tx(tx_id, p)?).unwrap_or_default())))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceOption {
+    pub path: String,
+    pub model: Option<String>,
+    pub size_bytes: u64,
+    pub bus: String,
+    pub is_boot: bool,
+    pub readable: bool,
+}
+
+/// Discos físicos que se pueden abrir como origen.
+#[tauri::command]
+pub async fn list_open_devices() -> Cmd<Vec<DeviceOption>> {
+    #[cfg(target_os = "linux")]
+    {
+        use blocksmith_smart::HealthBackend;
+        let devs = blocksmith_smart::backends::linux::LinuxNative::default().devices()?;
+        Ok(devs
+            .into_iter()
+            .map(|d| DeviceOption {
+                readable: std::fs::File::open(&d.path).is_ok(),
+                path: d.path,
+                model: d.model,
+                size_bytes: d.capacity_bytes,
+                bus: format!("{:?}", d.bus).to_lowercase(),
+                is_boot: d.is_boot_disk,
+            })
+            .collect())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Err("la lista de discos aún no está disponible en este sistema; abre el dispositivo por su ruta (p. ej. /dev/disk4) o crea una imagen".into())
+    }
+}

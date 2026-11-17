@@ -6,6 +6,7 @@
 
 pub mod dto;
 pub mod health;
+pub mod repair;
 pub mod probe;
 pub mod report;
 pub mod snapshot;
@@ -48,6 +49,8 @@ pub enum CoreError {
     Export(#[from] blocksmith_rebuilder::ExportError),
     #[error("{0}")]
     Os(#[from] std::io::Error),
+    #[error("{0}")]
+    Tx(#[from] blocksmith_txwriter::TxError),
 }
 
 impl From<CoreError> for String {
@@ -134,23 +137,38 @@ impl Progress for NullProgress {
 
 pub struct Core {
     db: Database,
-    data_dir: PathBuf,
+    pub(crate) data_dir: PathBuf,
     default_output_dir: PathBuf,
-    plans: Mutex<HashMap<i64, Arc<RebuildPlan>>>,
+    pub(crate) plans: Mutex<HashMap<i64, Arc<RebuildPlan>>>,
     trees: Mutex<HashMap<PathBuf, Arc<TreeIndex>>>,
+    /// Solo desarrollo: simula un corte antes de la escritura N (`BLOCKSMITH_TX_FAIL_AFTER`).
+    pub(crate) tx_fail_after: Mutex<Option<u32>>,
+    /// Solo desarrollo: usa el helper aunque el destino sea escribible (`BLOCKSMITH_FORCE_HELPER=1`).
+    pub(crate) force_helper: Mutex<bool>,
 }
 
 /// Datos mínimos para reabrir un volumen.
-struct VolumeLocation {
-    path: String,
-    offset: u64,
-    length: u64,
-    fs_type: String,
+pub(crate) struct VolumeLocation {
+    pub(crate) path: String,
+    pub(crate) offset: u64,
+    pub(crate) length: u64,
+    pub(crate) fs_type: String,
 }
 
 impl Core {
     pub fn new(db: Database, data_dir: PathBuf, default_output_dir: PathBuf) -> Self {
-        Self { db, data_dir, default_output_dir, plans: Mutex::default(), trees: Mutex::default() }
+        let dev = cfg!(debug_assertions);
+        let fail = std::env::var(repair::FAIL_ENV).ok().and_then(|v| v.parse().ok()).filter(|_| dev);
+        let force = dev && std::env::var("BLOCKSMITH_FORCE_HELPER").as_deref() == Ok("1");
+        Self {
+            db,
+            data_dir,
+            default_output_dir,
+            plans: Mutex::default(),
+            trees: Mutex::default(),
+            tx_fail_after: Mutex::new(fail),
+            force_helper: Mutex::new(force),
+        }
     }
 
     pub fn db(&self) -> &Database {
@@ -176,9 +194,22 @@ impl Core {
         if let Some(id) = existing {
             return self.get_source(id);
         }
-        let dev = open_image(&path)?;
+        let dev = open_image(&path).map_err(|e| match e {
+            blocksmith_io::IoError::Os(ref io) if io.kind() == std::io::ErrorKind::PermissionDenied => CoreError::Invalid(format!(
+                "no hay permisos para leer {}; para analizar un disco físico, ejecuta BlockSmith con permisos de administrador o crea antes una imagen del disco",
+                path.display()
+            )),
+            other => other.into(),
+        })?;
         let raw = blocksmith_io::RawImage::open(&path)?;
-        let kind = if blocksmith_io::udif::has_koly_trailer(&raw)? { "udif" } else { "raw_image" };
+        let is_device = blocksmith_txwriter::device::assess(&path).kind == Some(blocksmith_txwriter::TargetKind::BlockDevice);
+        let kind = if is_device {
+            "device"
+        } else if blocksmith_io::udif::has_koly_trailer(&raw)? {
+            "udif"
+        } else {
+            "raw_image"
+        };
         let (scheme, vols) = probe::probe(dev.as_ref())?;
         let label = path.file_name().map(|n| n.to_string_lossy().to_string());
         let mut conn = self.db.conn();
@@ -316,7 +347,7 @@ impl Core {
         Ok(v)
     }
 
-    fn location(&self, volume_id: i64) -> CoreResult<VolumeLocation> {
+    pub(crate) fn location(&self, volume_id: i64) -> CoreResult<VolumeLocation> {
         self.db
             .conn()
             .query_row(
@@ -328,7 +359,7 @@ impl Core {
             .ok_or_else(|| CoreError::NotFound(format!("volumen {volume_id} no encontrado")))
     }
 
-    fn open_location(loc: &VolumeLocation) -> CoreResult<Box<dyn BlockDevice>> {
+    pub(crate) fn open_location(loc: &VolumeLocation) -> CoreResult<Box<dyn BlockDevice>> {
         if !Path::new(&loc.path).exists() {
             return Err(CoreError::Invalid(format!("la imagen ya no está en {}", loc.path)));
         }
@@ -465,7 +496,7 @@ impl Core {
 
     // ── Reconstrucción ──────────────────────────────────────────────────────
 
-    fn compute_plan(&self, volume_id: i64, progress: &mut dyn Progress) -> CoreResult<RebuildPlan> {
+    pub(crate) fn compute_plan(&self, volume_id: i64, progress: &mut dyn Progress) -> CoreResult<RebuildPlan> {
         let loc = self.location(volume_id)?;
         let dev = Self::open_location(&loc)?;
         let slice = Slice::new(dev.as_ref(), loc.offset, loc.length)?;
@@ -746,6 +777,7 @@ impl Core {
             log_level: "info".into(),
             export_encrypted_by_default: true,
             health_check_on_start: true,
+            undo_dir: String::new(),
         };
         Ok(stored.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(defaults))
     }
@@ -804,7 +836,7 @@ fn finding_from_row(r: &Row<'_>) -> rusqlite::Result<FindingDto> {
     })
 }
 
-fn finding_dto(id: i64, session_id: i64, f: &Finding) -> FindingDto {
+pub(crate) fn finding_dto(id: i64, session_id: i64, f: &Finding) -> FindingDto {
     FindingDto {
         id,
         session_id,

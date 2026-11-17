@@ -214,3 +214,132 @@ fn health_flow_with_replay_backend() {
     let s = e.core.settings().unwrap();
     assert_eq!((s.theme.as_str(), s.health_check_on_start), ("dark", true));
 }
+
+// ── F5: reparación en el propio origen ─────────────────────────────────────
+
+fn planned(e: &Env, damage: Damage) -> (PathBuf, i64, i64, Vec<u8>) {
+    let path = image(e, &format!("{damage:?}.img"), Some(damage));
+    let original = std::fs::read(&path).unwrap();
+    let vol = e.core.open_image(&path).unwrap().volumes[0].id;
+    let sid = e.core.scan(vol, &mut NullProgress).unwrap();
+    let rid = e.core.plan(sid, &mut NullProgress).unwrap();
+    (path, sid, rid, original)
+}
+
+fn healthy(e: &Env, path: &std::path::Path) -> bool {
+    let src = e.core.open_image(path).unwrap();
+    let sid = e.core.scan(src.volumes[0].id, &mut NullProgress).unwrap();
+    let s = e.core.get_session(sid).unwrap();
+    s.counts.critical + s.counts.minor == 0
+}
+
+/// Cancela en cuanto empieza la escritura del directorio nuevo.
+#[derive(Default)]
+struct CancelOnWrite(bool);
+impl Progress for CancelOnWrite {
+    fn phase(&mut self, name: &str) {
+        self.0 |= name == "Escribiendo el directorio nuevo";
+    }
+    fn advance(&mut self, _: u64, _: u64) {}
+    fn is_cancelled(&self) -> bool {
+        self.0
+    }
+}
+
+#[test]
+fn repair_in_place_and_undo() {
+    let e = env();
+    let (path, sid, rid, original) = planned(&e, Damage::FolderAndThreadLost);
+    let pre = e.core.preflight(rid).unwrap();
+    assert_eq!(pre.mode, "in_process");
+    assert!(pre.can_proceed, "{:#?}", pre.checks);
+    // Confirmación incorrecta: no se toca nada.
+    assert!(e.core.repair_in_place(rid, "otro nombre", &mut NullProgress).is_err());
+    assert!(std::fs::read(&path).unwrap() == original);
+
+    let res = e.core.repair_in_place(rid, "BlockSmith Test", &mut NullProgress).unwrap();
+    assert!(res.verified, "{:?}", res.remaining_findings);
+    assert!(healthy(&e, &path));
+    let r = e.core.get_rebuild(rid).unwrap();
+    assert_eq!((r.status.as_str(), r.target.as_str(), r.verified), ("done", "in_place", true));
+    let txs = e.core.transactions().unwrap();
+    assert_eq!((txs[0].status.as_str(), txs[0].can_complete, txs[0].can_rollback), ("verified", false, true));
+    // Ya aplicada: no se puede repetir.
+    let pre = e.core.preflight(rid).unwrap();
+    assert!(!pre.can_proceed && pre.checks.iter().any(|c| c.id == "plan" && c.status == "block"));
+
+    // Deshacer la reparación devuelve la imagen exacta y deja la reconstrucción pendiente.
+    e.core.rollback_tx(txs[0].id, false, &mut NullProgress).unwrap();
+    assert!(std::fs::read(&path).unwrap() == original);
+    assert_eq!(e.core.get_rebuild(rid).unwrap().status, "planned");
+    assert_eq!(e.core.get_session(sid).unwrap().status, "rebuilt");
+    assert!(e.core.preflight(rid).unwrap().can_proceed);
+}
+
+#[test]
+fn interrupted_repair_is_detected_and_recoverable() {
+    for complete in [false, true] {
+        let e = env();
+        let (path, _, rid, original) = planned(&e, Damage::ExtentOverlap);
+        *e.core.tx_fail_after.lock().unwrap() = Some(2);
+        let err = e.core.repair_in_place(rid, "BlockSmith Test", &mut NullProgress).unwrap_err();
+        assert!(err.to_string().contains("interrumpida"), "{err}");
+        *e.core.tx_fail_after.lock().unwrap() = None;
+        let tx = e.core.transactions().unwrap().remove(0);
+        assert_eq!((tx.status.as_str(), tx.blocks_written), ("interrupted", 2));
+        assert!(tx.can_complete && tx.can_rollback);
+        // Mientras haya una transacción a medias, no se puede empezar otra.
+        let pre = e.core.preflight(rid).unwrap();
+        assert!(pre.checks.iter().any(|c| c.id == "pending_tx" && c.status == "block"));
+
+        // Simula que la app murió a mitad: al arrancar se detecta.
+        e.core.db().conn().execute("UPDATE write_transactions SET status = 'writing' WHERE id = ?1", [tx.id]).unwrap();
+        assert_eq!(e.core.detect_interrupted().unwrap(), 1);
+        assert_eq!(e.core.transactions().unwrap()[0].status, "interrupted");
+
+        if complete {
+            let t = e.core.complete_tx(tx.id, &mut NullProgress).unwrap();
+            assert_eq!(t.status, "verified");
+            assert!(healthy(&e, &path));
+        } else {
+            let t = e.core.rollback_tx(tx.id, false, &mut NullProgress).unwrap();
+            assert_eq!(t.status, "rolled_back");
+            assert!(std::fs::read(&path).unwrap() == original);
+            // Tras revertir se puede reintentar (varias transacciones por reconstrucción).
+            assert!(e.core.repair_in_place(rid, "BlockSmith Test", &mut NullProgress).unwrap().verified);
+            assert_eq!(e.core.transactions().unwrap().len(), 2);
+        }
+    }
+}
+
+#[test]
+fn cancelling_before_commit_rolls_back() {
+    let e = env();
+    let (path, _, rid, original) = planned(&e, Damage::ValenceWrong);
+    let err = e.core.repair_in_place(rid, "BlockSmith Test", &mut CancelOnWrite::default()).unwrap_err();
+    assert!(matches!(err, CoreError::Cancelled), "{err}");
+    assert!(std::fs::read(&path).unwrap() == original);
+    assert_eq!(e.core.transactions().unwrap()[0].status, "rolled_back");
+}
+
+#[test]
+fn repair_through_helper_process() {
+    let helper = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/debug/blocksmith-helper");
+    if !helper.exists() {
+        eprintln!("blocksmith-helper no compilado: se omite (cargo build -p blocksmith-helper)");
+        return;
+    }
+    std::env::set_var("BLOCKSMITH_HELPER_PATH", &helper);
+    std::env::set_var("BLOCKSMITH_HELPER_ELEVATION", "none");
+    let e = env();
+    *e.core.force_helper.lock().unwrap() = true;
+    let (path, _, rid, _) = planned(&e, Damage::NodeUnreadable);
+    assert_eq!(e.core.preflight(rid).unwrap().mode, "helper");
+    let res = e.core.repair_in_place(rid, "BlockSmith Test", &mut NullProgress).unwrap();
+    assert!(res.verified);
+    assert!(healthy(&e, &path));
+    let tx = e.core.transactions().unwrap().remove(0);
+    assert_eq!((tx.status.as_str(), tx.mode.as_str()), ("verified", "helper"));
+    e.core.rollback_tx(tx.id, false, &mut NullProgress).unwrap();
+    assert_eq!(e.core.transactions().unwrap()[0].status, "rolled_back");
+}
