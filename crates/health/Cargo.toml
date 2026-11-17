@@ -1,0 +1,19 @@
+[package]
+name = "blocksmith-health"
+description = "Salud de discos: repositorio, reglas de alerta y recolector (compartido por la app y el agente)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+blocksmith-smart = { version = "0.1.0", path = "../smart" }
+blocksmith-store = { version = "0.1.0", path = "../store" }
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"

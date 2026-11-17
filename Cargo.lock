@@ -402,8 +402,14 @@ dependencies = [
 name = "blocksmith-agent"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "blocksmith-health",
  "blocksmith-smart",
- "rusqlite",
+ "blocksmith-store",
+ "clap",
+ "libc",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -421,10 +427,12 @@ dependencies = [
  "blocksmith-crypto-layers",
  "blocksmith-fs-core",
  "blocksmith-fs-hfsplus",
+ "blocksmith-health",
  "blocksmith-io",
  "blocksmith-partition",
  "blocksmith-rebuilder",
  "blocksmith-smart",
+ "blocksmith-store",
  "chrono",
  "rmp-serde",
  "rusqlite",
@@ -536,6 +544,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "blocksmith-health"
+version = "0.1.0"
+dependencies = [
+ "blocksmith-smart",
+ "blocksmith-store",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "blocksmith-helper"
 version = "0.1.0"
 dependencies = [
@@ -583,8 +603,20 @@ dependencies = [
 name = "blocksmith-smart"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "blocksmith-store"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "rusqlite",
+ "serde",
 ]
 
 [[package]]

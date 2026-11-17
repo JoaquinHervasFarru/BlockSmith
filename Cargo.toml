@@ -13,6 +13,8 @@ members = [
     "crates/analyzer",
     "crates/rebuilder",
     "crates/txwriter",
+    "crates/store",
+    "crates/health",
     "crates/cli",
     "helper",
     "agent",
