@@ -1,6 +1,5 @@
 import {
-  Activity, Bell, Database, FileSearch, GitCompareArrows, HardDrive, HardDriveDownload, History,
-  KeyRound, LifeBuoy, Monitor, Moon, Settings, Sun, Undo2,
+  Activity, Bell, Database, HardDrive, HardDriveDownload, History, KeyRound, LifeBuoy, Monitor, Moon, Settings, Sun, Undo2,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { NavLink, Outlet } from "react-router-dom";
@@ -13,28 +12,29 @@ const groups: { label: string; items: Item[] }[] = [
   {
     label: "Discos",
     items: [
-      { to: "/", label: "Inicio", icon: <HardDrive /> },
-      { to: "/resultados", label: "Resultados", icon: <FileSearch /> },
-      { to: "/comparacion", label: "Comparación", icon: <GitCompareArrows /> },
-      { to: "/recuperacion", label: "Recuperar archivos", icon: <LifeBuoy /> },
+      { to: "/", label: "Imágenes", icon: <HardDrive /> },
+      { to: "/historial", label: "Historial", icon: <History /> },
     ],
   },
   {
-    label: "Salud",
+    label: "Salud · vista previa",
     items: [
       { to: "/salud", label: "Salud de los discos", icon: <Activity /> },
-      { to: "/alertas", label: "Alertas", icon: <Bell />, count: 3 },
+      { to: "/alertas", label: "Alertas", icon: <Bell /> },
     ],
   },
   {
-    label: "Herramientas",
+    label: "Próximamente",
     items: [
-      { to: "/transacciones", label: "Transacciones", icon: <Undo2 />, count: 1 },
+      { to: "/recuperacion", label: "Recuperar archivos", icon: <LifeBuoy /> },
+      { to: "/transacciones", label: "Transacciones", icon: <Undo2 /> },
       { to: "/cifrado", label: "Cabeceras de cifrado", icon: <KeyRound /> },
       { to: "/arranque", label: "Medio de arranque", icon: <HardDriveDownload /> },
-      { to: "/historial", label: "Historial", icon: <History /> },
-      { to: "/ajustes", label: "Ajustes", icon: <Settings /> },
     ],
+  },
+  {
+    label: "Aplicación",
+    items: [{ to: "/ajustes", label: "Ajustes", icon: <Settings /> }],
   },
 ];
 
@@ -70,8 +70,8 @@ export function AppShell() {
       <div className="main">
         <header className="topbar">
           {usingMocks && (
-            <span className="badge badge--ember" title="La UI usa src/mocks/data.ts">
-              <Database aria-hidden /> Datos simulados
+            <span className="badge badge--ember" title="Fuera de la app de escritorio se usa un motor simulado (src/api/mock.ts)">
+              <Database aria-hidden /> Modo demostración · datos simulados
             </span>
           )}
           <div className="topbar__spacer" />

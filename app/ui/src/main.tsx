@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles/index.css";
 import "./store/ui";
+import { installJobListeners } from "./store/jobs";
+
+installJobListeners();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

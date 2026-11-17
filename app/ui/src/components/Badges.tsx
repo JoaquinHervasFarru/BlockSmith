@@ -1,7 +1,8 @@
 import { CircleCheck, CircleHelp, FlaskConical, Lock, LockOpen, ShieldAlert, TriangleAlert } from "lucide-react";
 import clsx from "clsx";
-import type { Capabilities, EncryptionLayer, FsType, Severity, SmartOverall, Support } from "../types/models";
-import { fsLabel, schemeLabel, severityLabel, smartLabel } from "../lib/labels";
+import type { EncryptionLayer, Severity, SmartOverall, Support } from "../types/models";
+import type { SeverityCounts } from "../types/api";
+import { fsName, schemeLabel, severityLabel, smartLabel } from "../lib/labels";
 
 const severityTone: Record<Severity, string> = { critical: "badge--crit", minor: "badge--warn", cosmetic: "" };
 
@@ -28,8 +29,22 @@ export function HealthBadge({ overall }: { overall: SmartOverall }) {
   );
 }
 
-export function FsBadge({ fs }: { fs: FsType }) {
-  return <span className="badge badge--outline badge--mono">{fsLabel[fs]}</span>;
+export function FsBadge({ fs }: { fs: string }) {
+  return <span className="badge badge--outline badge--mono">{fsName(fs)}</span>;
+}
+
+/** Recuento compacto de hallazgos por severidad; «Sin problemas» si no hay ninguno. */
+export function SeverityCountBadges({ counts }: { counts: SeverityCounts }) {
+  if (counts.critical + counts.minor + counts.cosmetic === 0) {
+    return <span className="badge badge--ok"><CircleCheck aria-hidden /> Sin problemas</span>;
+  }
+  return (
+    <span className="row">
+      {counts.critical > 0 && <span className="badge badge--crit"><ShieldAlert aria-hidden /> {counts.critical}</span>}
+      {counts.minor > 0 && <span className="badge badge--warn"><TriangleAlert aria-hidden /> {counts.minor}</span>}
+      {counts.cosmetic > 0 && <span className="badge"><CircleHelp aria-hidden /> {counts.cosmetic}</span>}
+    </span>
+  );
 }
 
 export function EncryptionBadge({ layer }: { layer: EncryptionLayer | null }) {
@@ -47,7 +62,9 @@ export function EncryptionBadge({ layer }: { layer: EncryptionLayer | null }) {
 
 const supportText: Record<Support, string> = { yes: "", experimental: " (experimental)", no: " · no disponible" };
 
-export function CapabilityChips({ caps }: { caps: Capabilities }) {
+interface CapabilitySet { scan: Support; recover: Support; rebuild: Support; writeInPlace: Support }
+
+export function CapabilityChips({ caps }: { caps: CapabilitySet }) {
   const items: [string, Support][] = [
     ["Escanear", caps.scan], ["Recuperar", caps.recover], ["Reconstruir", caps.rebuild], ["Escritura directa", caps.writeInPlace],
   ];

@@ -1,0 +1,27 @@
+# Pruebas de extremo a extremo
+
+| Script | Qué prueba | Requisitos |
+|---|---|---|
+| `demo.js` | Flujo completo en el navegador con el motor simulado: abrir, analizar, planificar, comparar, exportar, historial, ajustes y cancelación | Playwright y `npm run dev` en marcha |
+| `real_app.py` | Flujo completo en la **app de escritorio real** (Tauri + WebKitGTK) contra el motor real, y `fsck.hfsplus` sobre la imagen exportada | Linux con `tauri-driver`, `WebKitWebDriver`, Xvfb, `hfsprogs`, la app compilada y `npm run dev` en marcha (la app en modo debug carga la interfaz desde ahí) |
+
+El diálogo nativo de archivos no se puede automatizar, así que `real_app.py` abre la imagen con el mismo
+comando IPC que usa el botón «Abrir imagen…». El resto de la interacción son clics reales.
+
+Ejecutar la prueba de la app real en un Linux sin pantalla:
+
+```bash
+cargo build -p blocksmith-app && cargo run -p blocksmith-corruptor -- gen --out fixtures/hfsplus
+```
+
+```bash
+Xvfb :99 -screen 0 1360x900x24 & export DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1
+```
+
+```bash
+dbus-run-session -- tauri-driver &
+```
+
+```bash
+python3 app/e2e/real_app.py "$PWD/target/debug/blocksmith" "$PWD/fixtures/hfsplus/dañado-folder-and-thread-lost.img" /tmp/capturas
+```

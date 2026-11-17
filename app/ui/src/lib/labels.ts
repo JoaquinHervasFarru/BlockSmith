@@ -24,3 +24,16 @@ export const changeLabel: Record<DiffChange, string> = {
   valence_fixed: "Recuento corregido", dropped: "Descartado",
   data_truncated: "Datos truncados", data_cloned: "Datos duplicados", unchanged_flagged: "Sin cambios · revisar",
 };
+
+export const sessionStatusLabel: Record<string, string> = {
+  pending: "Pendiente", scanning: "Analizando", scanned: "Analizado", rebuilding: "Reconstruyendo",
+  rebuilt: "Reconstrucción lista", exported: "Exportado", failed: "Error", cancelled: "Cancelado",
+};
+
+export const jobKindLabel: Record<string, string> = {
+  scan: "Análisis del volumen", plan: "Plan de reconstrucción", export: "Exportación de la imagen reparada",
+};
+
+/** Etiqueta del sistema de archivos para cualquier cadena del backend. */
+export const fsName = (fs: string) =>
+  ({ hfsplus: "HFS+", hfsx: "HFSX", apfs: "APFS", ntfs: "NTFS", ext4: "ext4" } as Record<string, string>)[fs] ?? fs;

@@ -1,19 +1,23 @@
 /**
- * Capa de acceso a datos de la UI.
+ * Acceso a datos de la UI.
  *
- * - Dentro de Tauri, los comandos se resolverán vía `invoke` (a partir de F3).
- * - En el navegador (`npm run dev`) o mientras el motor no exista, se sirven los
- *   mocks de `src/mocks/data.ts` con una latencia simulada.
+ * - `backend`: la API real de Tauri dentro de la app de escritorio, o la simulada
+ *   (`mock.ts`) en el navegador. Ambas cumplen el mismo contrato (`backend.ts`).
+ * - `preview`: datos simulados de funciones de fases futuras (salud de discos, F4).
  *
- * Forzar mocks dentro de Tauri: VITE_USE_MOCKS=true.
+ * Forzar la simulación dentro de Tauri: VITE_USE_MOCKS=true.
  */
 import * as mock from "../mocks/data";
 import type {
-  Alert, Disk, EncryptionLayer, Finding, Session, SmartSnapshot, Source, Volume,
+  Alert, Disk, EncryptionLayer, SmartSnapshot, Source, Volume,
 } from "../types/models";
+import type { Backend } from "./backend";
+import { mockBackend } from "./mock";
+import { tauriBackend } from "./tauri";
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 export const usingMocks = !isTauri || import.meta.env.VITE_USE_MOCKS === "true";
+export const backend: Backend = usingMocks ? mockBackend : tauriBackend;
 
 const delay = <T,>(value: T, ms = 180) =>
   new Promise<T>((resolve) => setTimeout(() => resolve(structuredClone(value)), ms));
@@ -37,7 +41,8 @@ function volumesFor(sourceIds: number[]) {
     .map((v) => ({ ...v, encryption: mock.encryptionLayers.find((e) => e.volumeId === v.id) ?? null }));
 }
 
-export const api = {
+/** Vista previa con datos simulados de la monitorización de discos (fase F4). */
+export const preview = {
   async overview(): Promise<DiskOverview[]> {
     const physical: DiskOverview[] = mock.disks.map((disk) => {
       const sources = mock.sources.filter((s) => s.diskId === disk.id);
@@ -63,15 +68,4 @@ export const api = {
     return delay(mock.alerts);
   },
 
-  async sessions(): Promise<Session[]> {
-    return delay(mock.sessions);
-  },
-
-  async findings(sessionId: number): Promise<Finding[]> {
-    return delay(mock.findings.filter((f) => f.sessionId === sessionId));
-  },
-
-  async interruptedTransactions() {
-    return delay(mock.writeTransactions.filter((t) => t.status === "interrupted"));
-  },
 };

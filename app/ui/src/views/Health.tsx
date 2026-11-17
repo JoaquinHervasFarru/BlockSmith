@@ -1,7 +1,7 @@
 import { Thermometer } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { api, type DiskOverview } from "../api";
+import { preview, type DiskOverview } from "../api";
 import { HealthBadge } from "../components/Badges";
 import { busLabel } from "../lib/labels";
 import { formatNumber } from "../lib/format";
@@ -12,8 +12,8 @@ export function Health() {
   const [history, setHistory] = useState<SmartSnapshot[]>([]);
 
   useEffect(() => {
-    api.overview().then((all) => setItems(all.filter((i) => i.disk)));
-    api.smartHistory(3).then(setHistory);
+    preview.overview().then((all) => setItems(all.filter((i) => i.disk)));
+    preview.smartHistory(3).then(setHistory);
   }, []);
 
   const series = useMemo(
@@ -31,6 +31,14 @@ export function Health() {
         <div>
           <h1>Salud de los discos</h1>
           <p>Lecturas S.M.A.R.T. y NVMe del agente en segundo plano. Si una caja USB no transmite datos se indica como «No disponible».</p>
+        </div>
+      </div>
+
+      <div className="callout callout--warn">
+        <Thermometer aria-hidden />
+        <div>
+          <strong>Vista previa con datos simulados</strong>
+          La monitorización real de discos llega en la fase F4. Esta pantalla muestra cómo se verá.
         </div>
       </div>
 

@@ -4,8 +4,9 @@ Verificación, recuperación y reconstrucción de directorios de disco para HFS+
 con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.
 
 Plan técnico aprobado: [`docs/BlockSmith-Plan-Tecnico-v3.pdf`](docs/BlockSmith-Plan-Tecnico-v3.pdf).
-Estado actual: **F2 completada** — escaneo de volúmenes HFS+/HFSX (43 tipos de hallazgo) y
-reconstrucción del directorio exportada a una imagen nueva, verificada automáticamente.
+Estado actual: **F3 completada** — app de escritorio conectada al motor: abrir imágenes, analizar
+volúmenes HFS+/HFSX, revisar hallazgos, comparar el directorio antes y después, exportar una imagen
+reparada verificada, historial con informes HTML/JSON y ajustes.
 
 ## Requisitos
 
@@ -21,13 +22,13 @@ Instalar las dependencias del frontend:
 cd app && npm install
 ```
 
-Abrir la UI en el navegador con datos simulados (http://localhost:1420):
+Abrir la UI en el navegador en **modo demostración** (motor simulado, sin Tauri; http://localhost:1420):
 
 ```bash
 cd app && npm run dev
 ```
 
-Abrir la app de escritorio (Tauri):
+Abrir la app de escritorio con el motor real (Tauri):
 
 ```bash
 cd app && npm run tauri dev
