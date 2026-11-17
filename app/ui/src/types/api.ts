@@ -165,6 +165,7 @@ export interface SettingsDto {
   logLevel: "error" | "warn" | "info" | "debug";
   exportEncryptedByDefault: boolean;
   healthCheckOnStart: boolean;
+  undoDir: string;
 }
 
 export interface AppInfo {
@@ -173,7 +174,7 @@ export interface AppInfo {
   phase: string;
 }
 
-export type JobKind = "scan" | "plan" | "export" | "health";
+export type JobKind = "scan" | "plan" | "export" | "health" | "repair" | "rollback" | "complete";
 
 export interface JobProgressEvent {
   jobId: number;
@@ -296,4 +297,61 @@ export interface HealthStatusDto {
   backend: string;
   pollIntervalMin: number;
   openAlerts: number;
+}
+
+// ── Escritura directa (F5) ─────────────────────────────────────────────────
+
+export interface PreflightCheckDto {
+  id: string;
+  label: string;
+  status: "ok" | "warn" | "block";
+  detail: string;
+}
+
+export interface PreflightDto {
+  rebuildId: number;
+  target: string;
+  volumeName: string | null;
+  mode: "in_process" | "helper" | "unavailable";
+  checks: PreflightCheckDto[];
+  canProceed: boolean;
+  undoDir: string;
+}
+
+export interface RepairResultDto {
+  txId: number;
+  verified: boolean;
+  remainingFindings: FindingDto[];
+  undoLogPath: string;
+  rebuildId: number;
+}
+
+export type TxStatus = "prepared" | "writing" | "committed" | "finalized" | "verified" | "rolled_back" | "interrupted" | "failed";
+
+export interface TxDto {
+  id: number;
+  rebuildId: number;
+  sessionId: number;
+  volumeName: string | null;
+  devicePath: string;
+  status: TxStatus;
+  mode: "in_process" | "helper";
+  undoLogPath: string;
+  undoExists: boolean;
+  blocksTotal: number;
+  blocksWritten: number;
+  startedAt: string;
+  finishedAt: string | null;
+  error: string | null;
+  canRollback: boolean;
+  canComplete: boolean;
+}
+
+export interface DeviceOptionDto {
+  path: string;
+  model: string | null;
+  sizeBytes: number;
+  bus: string;
+  isBoot: boolean;
+  readable: boolean;
 }

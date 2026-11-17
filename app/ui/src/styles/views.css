@@ -254,3 +254,28 @@ a.list__row:hover { background: var(--surface-2); text-decoration: none; }
 .input--num { width: 84px; text-align: right; }
 details > summary.summary { cursor: pointer; list-style: none; font-weight: var(--weight-semibold); }
 details > summary.summary::-webkit-details-marker { display: none; }
+
+/* ── F5: escritura directa ── */
+.preflight { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.preflight__item { display: flex; gap: var(--space-3); align-items: flex-start; }
+.preflight__item > svg { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+.preflight__item--ok > svg { color: var(--ok); }
+.preflight__item--warn > svg { color: var(--warn); }
+.preflight__item--block > svg { color: var(--crit); }
+.preflight__item--block strong { color: var(--crit); }
+.tx-interrupted { border-color: color-mix(in srgb, var(--crit) 40%, var(--border)); }
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--overlay);
+}
+.modal__panel { width: min(620px, 100%); max-height: 85vh; overflow: auto; box-shadow: var(--shadow-overlay); }
+.list__button { width: 100%; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.list__button:hover:not(:disabled) { background: var(--surface-2); }
+.list__button:disabled { cursor: not-allowed; opacity: 0.6; }
+.confirm__icon { width: 22px; height: 22px; color: var(--warn); flex: none; }
+.confirm__actions { justify-content: flex-end; }

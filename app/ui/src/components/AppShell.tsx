@@ -14,6 +14,7 @@ const groups: { label: string; items: Item[] }[] = [
     items: [
       { to: "/", label: "Imágenes", icon: <HardDrive /> },
       { to: "/historial", label: "Historial", icon: <History /> },
+      { to: "/transacciones", label: "Transacciones", icon: <Undo2 />, count: -2 },
     ],
   },
   {
@@ -27,7 +28,6 @@ const groups: { label: string; items: Item[] }[] = [
     label: "Próximamente",
     items: [
       { to: "/recuperacion", label: "Recuperar archivos", icon: <LifeBuoy /> },
-      { to: "/transacciones", label: "Transacciones", icon: <Undo2 /> },
       { to: "/cifrado", label: "Cabeceras de cifrado", icon: <KeyRound /> },
       { to: "/arranque", label: "Medio de arranque", icon: <HardDriveDownload /> },
     ],
@@ -63,9 +63,22 @@ function useOpenAlerts() {
   return n;
 }
 
+/** Transacciones interrumpidas pendientes de revisar. */
+function useInterruptedTx() {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const refresh = () => void backend.listTransactions().then((t) => setN(t.filter((x) => x.status === "interrupted").length)).catch(() => undefined);
+    refresh();
+    const t = setInterval(refresh, 15_000);
+    return () => clearInterval(t);
+  }, []);
+  return n;
+}
+
 export function AppShell() {
   const { theme, setTheme } = useUi();
   const openAlerts = useOpenAlerts();
+  const interrupted = useInterruptedTx();
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -81,6 +94,7 @@ export function AppShell() {
                 {it.icon}
                 {it.label}
                 {it.count === -1 && openAlerts > 0 ? <span className="badge badge--crit count" aria-label={`${openAlerts} alertas abiertas`}>{openAlerts}</span> : null}
+                {it.count === -2 && interrupted > 0 ? <span className="badge badge--crit count" aria-label={`${interrupted} transacciones interrumpidas`}>{interrupted}</span> : null}
               </NavLink>
             ))}
           </nav>

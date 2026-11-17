@@ -94,6 +94,38 @@ const BASE = process.env.BLOCKSMITH_URL || 'http://localhost:1420';
   await p.getByText(/Última lectura hace un momento por la app/).waitFor();
   await step('15-salud-leida');
 
+  // Escritura directa (F5): transacción interrumpida → revertir
+  await p.goto(BASE + '/#/');
+  await p.getByText(/escritura directa interrumpida en «Fotos 2019»/).waitFor();
+  await step('16-aviso-interrumpida');
+  await p.getByRole('link', { name: /Revisar: revertir o completar/ }).click();
+  await p.getByText('Interrumpida').first().waitFor();
+  await step('17-transacciones');
+  await p.getByRole('button', { name: /^Revertir$/ }).click();
+  await p.getByRole('alertdialog').getByRole('button', { name: 'Revertir' }).click();
+  await p.waitForURL(/#\/transacciones$/, { timeout: 15000 });
+  await p.getByText('Revertida').waitFor();
+  await step('18-revertida');
+
+  // Asistente: analizar → planificar → reparar en el origen
+  await p.goto(BASE + '/#/');
+  await p.getByRole('link', { name: /Copia de seguridad/ }).first().click();
+  await p.getByRole('button', { name: /Analizar volumen/ }).click();
+  await p.waitForURL(/#\/sesion\/\d+/, { timeout: 15000 });
+  await p.getByRole('button', { name: /Planificar reconstrucción/ }).click();
+  await p.waitForURL(/#\/reconstruccion\/\d+$/, { timeout: 15000 });
+  await p.getByRole('link', { name: /Reparar en el origen/ }).click();
+  await p.getByText('1 · Comprobaciones previas').waitFor();
+  const repairBtn = p.getByRole('button', { name: /^Reparar en el origen$/ });
+  if (await repairBtn.isEnabled()) throw new Error('el botón debe estar desactivado sin confirmar');
+  await p.getByLabel('Nombre del volumen para confirmar').fill('Copia de seguridad');
+  await p.getByText(/Entiendo que se modificará el origen/).click();
+  await step('19-asistente');
+  await repairBtn.click();
+  await p.waitForURL(/aplicar\?trabajo=/, { timeout: 20000 });
+  await p.getByText(/Reparado y verificado/).waitFor();
+  await step('20-reparado');
+
   console.log(errors.length ? 'ERRORES:\n' + errors.join('\n') : 'SIN ERRORES DE CONSOLA');
   await b.close();
 })().catch(e => { console.error('FALLO:', e.message); process.exit(1); });

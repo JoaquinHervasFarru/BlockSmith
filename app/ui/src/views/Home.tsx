@@ -1,8 +1,9 @@
-import { Disc3, FolderOpen, HardDrive, History, Info, Trash2 } from "lucide-react";
+import { Disc3, FolderOpen, HardDrive, History, Info, Trash2, Undo2, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { backend } from "../api";
 import { FsBadge, SeverityCountBadges } from "../components/Badges";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState, ErrorCallout, Loading } from "../components/Feedback";
 import { StatTile } from "../components/StatTile";
 import { formatBytes, formatDate, formatNumber, usedRatio } from "../lib/format";
@@ -13,6 +14,8 @@ import type { SourceDto } from "../types/api";
 export function Home() {
   const navigate = useNavigate();
   const sources = useAsync(() => backend.listSources(), []);
+  const txs = useAsync(() => backend.listTransactions(), []);
+  const [showDevices, setShowDevices] = useState(false);
   const sessions = useAsync(() => backend.listSessions(), []);
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +37,9 @@ export function Home() {
     }
   };
 
+  const [removing, setRemoving] = useState<SourceDto | null>(null);
   const remove = async (s: SourceDto) => {
-    if (!window.confirm(`¿Quitar «${s.label ?? s.path}» de la biblioteca? La imagen no se borra del disco.`)) return;
+    setRemoving(null);
     try {
       await backend.removeSource(s.id);
       sources.reload();
@@ -56,10 +60,45 @@ export function Home() {
           <h1>Imágenes de disco</h1>
           <p>Abre una imagen (.dmg o raw) para verificarla. Todo se analiza en solo lectura y la imagen original nunca se modifica.</p>
         </div>
-        <button className="btn btn--primary" onClick={openImage} disabled={opening}>
-          <FolderOpen aria-hidden /> {opening ? "Abriendo…" : "Abrir imagen…"}
-        </button>
+        <div className="row row--wrap">
+          <button className="btn btn--secondary" onClick={() => setShowDevices(true)}><HardDrive aria-hidden /> Abrir disco…</button>
+          <button className="btn btn--primary" onClick={openImage} disabled={opening}>
+            <FolderOpen aria-hidden /> {opening ? "Abriendo…" : "Abrir imagen…"}
+          </button>
+        </div>
       </div>
+
+      {(txs.data ?? []).filter((t) => t.status === "interrupted").map((t) => (
+        <div key={t.id} className="callout callout--warn" role="alert">
+          <Undo2 aria-hidden />
+          <div>
+            <strong>Hay una escritura directa interrumpida en «{t.volumeName ?? t.devicePath}».</strong>
+            Se escribieron {t.blocksWritten} de {t.blocksTotal} bloques. <Link to="/transacciones">Revisar: revertir o completar</Link>
+          </div>
+        </div>
+      ))}
+      {removing && (
+        <ConfirmDialog title="¿Quitar de la biblioteca?" confirmLabel="Quitar" onConfirm={() => remove(removing)} onCancel={() => setRemoving(null)}>
+          «{removing.label ?? removing.path}» desaparecerá de la lista y de su historial. La imagen no se borra del disco.
+        </ConfirmDialog>
+      )}
+      {showDevices && (
+        <DevicePicker
+          onClose={() => setShowDevices(false)}
+          onOpen={async (path) => {
+            setShowDevices(false);
+            setError(null);
+            try {
+              const src = await backend.openImage(path);
+              sources.reload();
+              const first = src.volumes[0];
+              if (src.volumes.length === 1 && first) navigate(`/volumen/${first.id}`);
+            } catch (e) {
+              setError(errorText(e));
+            }
+          }}
+        />
+      )}
 
       {error && <ErrorCallout title="No se pudo abrir la imagen" message={error} />}
 
@@ -78,7 +117,7 @@ export function Home() {
           </EmptyState>
         ) : (
           <div className="card-grid">
-            {list.map((s) => <SourceCard key={s.id} source={s} onRemove={() => remove(s)} />)}
+            {list.map((s) => <SourceCard key={s.id} source={s} onRemove={() => setRemoving(s)} />)}
           </div>
         )}
       </section>
@@ -111,8 +150,8 @@ export function Home() {
         <Info aria-hidden />
         <div>
           <strong>Discos físicos</strong>
-          El análisis directo de discos conectados llegará junto con el servicio con permisos de administrador.
-          Mientras tanto, crea una imagen del disco y ábrela aquí.
+          Con «Abrir disco…» puedes analizar un disco conectado si tienes permisos para leerlo. Lo más seguro sigue siendo
+          crear antes una imagen del disco y trabajar sobre ella.
         </div>
       </div>
     </>
@@ -172,5 +211,37 @@ function SourceCard({ source, onRemove }: { source: SourceDto; onRemove: () => v
         {source.volumes.length === 0 && <li className="subtle">No se reconoció ningún volumen en esta imagen.</li>}
       </ul>
     </article>
+  );
+}
+
+function DevicePicker({ onClose, onOpen }: { onClose: () => void; onOpen: (path: string) => void }) {
+  const devices = useAsync(() => backend.listOpenDevices(), []);
+  return (
+    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="device-title" onClick={onClose}>
+      <div className="modal__panel card" onClick={(e) => e.stopPropagation()}>
+        <div className="card__header">
+          <h3 id="device-title">Abrir un disco</h3>
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={onClose} aria-label="Cerrar"><X aria-hidden /></button>
+        </div>
+        {devices.error ? <div className="card__body"><ErrorCallout message={devices.error} /></div> : !devices.data ? <Loading /> : (
+          <ul className="list">
+            {devices.data.map((d) => (
+              <li key={d.path}>
+                <button className="list__row list__button" disabled={!d.readable} onClick={() => onOpen(d.path)}>
+                  <HardDrive aria-hidden />
+                  <span className="grow">
+                    <strong>{d.model ?? d.path}</strong>
+                    <div className="subtle mono">{d.path} · {formatBytes(d.sizeBytes)}{d.isBoot ? " · disco de arranque" : ""}</div>
+                  </span>
+                  {!d.readable && <span className="badge">Sin permisos de lectura</span>}
+                </button>
+              </li>
+            ))}
+            {devices.data.length === 0 && <li className="card__body subtle">No se encontraron discos.</li>}
+          </ul>
+        )}
+        <p className="card__body subtle">Leer un disco directamente suele requerir permisos de administrador. Si no los tienes, crea una imagen del disco con otra herramienta y ábrela con «Abrir imagen…».</p>
+      </div>
+    </div>
   );
 }

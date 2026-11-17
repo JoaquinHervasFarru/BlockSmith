@@ -13,7 +13,14 @@ const PHASES: Record<JobKind, string[]> = {
   plan: ["Cabecera del volumen", "Árbol de extents", "Catálogo: estructura", "Catálogo: coherencia", "Extents y bitmap de asignación", "Plan de reconstrucción"],
   export: ["Copiando la imagen", "Aplicando la reconstrucción", "Verificando la imagen reparada"],
   health: ["Leyendo la salud de los discos"],
+  repair: ["Comprobaciones previas", "Recalculando el plan sobre el contenido actual", "Guardando la copia de deshacer",
+    "Escribiendo el directorio nuevo", "Actualizando la cabecera del volumen", "Liberando los bloques antiguos", "Verificando el volumen"],
+  rollback: ["Revirtiendo la transacción"],
+  complete: ["Completando la transacción", "Verificando el volumen"],
 };
+
+/** Trabajos cuyas fases intermedias del motor (p. ej. el re-análisis) no se muestran como pasos propios. */
+const FIXED_STEPS = new Set<JobKind>(["repair", "rollback", "complete"]);
 
 /** Adónde ir al terminar cada tipo de trabajo. */
 function destination(kind: JobKind, result: Record<string, unknown> | null, jobId: number): string | null {
@@ -21,6 +28,8 @@ function destination(kind: JobKind, result: Record<string, unknown> | null, jobI
   if (kind === "scan") return `/sesion/${result.sessionId}`;
   if (kind === "plan") return `/reconstruccion/${result.rebuildId}`;
   if (kind === "health") return "/salud";
+  if (kind === "repair") return `/reconstruccion/${result.rebuildId}/aplicar?trabajo=${jobId}`;
+  if (kind === "rollback" || kind === "complete") return "/transacciones";
   return `/reconstruccion/${result.rebuildId}/exportar?trabajo=${jobId}`;
 }
 
@@ -41,10 +50,16 @@ export function Job() {
   const phases = useMemo(() => {
     if (!job) return [];
     const base = PHASES[job.kind];
+    if (FIXED_STEPS.has(job.kind)) return base;
     // Fases que el motor emita y no estén en la lista conocida se añaden al final.
     const extra = job.log.map((l) => l.phase).filter((p) => p && !base.includes(p));
     return [...base, ...new Set(extra)];
   }, [job]);
+  // Paso resaltado: la última fase conocida (las intermedias no cambian el paso).
+  const currentStep = useMemo(() => {
+    if (!job) return "";
+    return [...job.log].reverse().find((l) => phases.includes(l.phase))?.phase ?? job.phase;
+  }, [job, phases]);
 
   if (!job) {
     return (
@@ -78,7 +93,10 @@ export function Job() {
           {job.status === "failed" && <CircleX className="crit-icon" aria-hidden />}
         </div>
         <ProgressBar value={job.status === "ok" ? 1 : running ? fraction : 0} label="Progreso" />
-        <PhaseStepper phases={phases} current={job.phase} finished={job.status === "ok"} />
+        <PhaseStepper phases={phases} current={currentStep} finished={job.status === "ok"} />
+        {running && job.kind === "repair" && (
+          <p className="subtle">Cancelar solo tiene efecto antes de actualizar la cabecera del volumen; en ese caso se revierte todo lo escrito.</p>
+        )}
       </section>
 
       {job.status === "failed" && <ErrorCallout title="El trabajo no pudo completarse" message={job.error ?? "Error desconocido"}

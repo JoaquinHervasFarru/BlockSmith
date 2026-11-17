@@ -4,9 +4,9 @@ Verificación, recuperación y reconstrucción de directorios de disco para HFS+
 con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.
 
 Plan técnico aprobado: [`docs/BlockSmith-Plan-Tecnico-v3.pdf`](docs/BlockSmith-Plan-Tecnico-v3.pdf).
-Estado actual: **F4 completada** — además de analizar y reparar imágenes HFS+/HFSX (F1–F3), la app y el
-agente `blocksmith-agent` vigilan la salud de los discos (S.M.A.R.T. y NVMe), guardan el histórico y
-generan alertas configurables.
+Estado actual: **F5 completada** — además de analizar, reparar en una imagen nueva (F1–F3) y vigilar la
+salud de los discos (F4), BlockSmith puede **reparar en el propio origen** (imagen o disco) de forma
+transaccional, con copia de deshacer, y recuperar transacciones interrumpidas.
 
 ## Requisitos
 
@@ -67,6 +67,30 @@ cargo run -p blocksmith-corruptor -- gen --out fixtures/hfsplus
 
 Los tests de `fs-hfsplus` validan las fixtures con `fsck.hfsplus` si está instalado
 (paquete `hfsprogs` en Debian/Ubuntu), como verificador independiente.
+
+## Reparar en el propio origen
+
+Desde la comparación de una reconstrucción, «Reparar en el origen…» abre un asistente con comprobaciones
+previas (no montado, no es el disco de arranque, journal limpio, salud del disco, copia de deshacer en
+otro disco y espacio suficiente) y una confirmación escribiendo el nombre del volumen.
+
+- Antes de escribir se guarda una **copia de deshacer** con los bytes originales y nuevos de cada bloque.
+- Las estructuras nuevas van a espacio libre y la cabecera del volumen se actualiza al final: un corte
+  antes deja la versión anterior intacta (probado cortando en cada escritura posible).
+- Al reabrir la app, una transacción interrumpida aparece en «Transacciones» para **revertirla** o
+  **completarla**. También se puede deshacer una reparación terminada si el volumen no ha cambiado.
+
+Si el usuario puede escribir en el destino (una imagen suya), todo ocurre dentro de la app. Si no, se usa
+`blocksmith-helper` con permisos de administrador:
+
+| Plataforma | Elevación | Instalación |
+|---|---|---|
+| Linux | `pkexec` (polkit) | Copiar `blocksmith-helper` a `/usr/local/bin` y `docs/packaging/dev.blocksmith.helper.policy` a `/usr/share/polkit-1/actions/` |
+| macOS | Diálogo de administrador (`osascript`) | `blocksmith-helper` junto a la app |
+| Windows | Pendiente | La escritura directa en discos aún no está disponible |
+
+El helper repite todas las comprobaciones por su cuenta, solo acepta un trabajo cuyo hash coincide con el
+que aprobó la app y verifica el volumen al terminar.
 
 ## Salud de los discos
 

@@ -51,6 +51,11 @@ export function SettingsView() {
             <button className="btn btn--secondary" onClick={pick}><FolderOpen aria-hidden /> Elegir…</button>
           </div>
         </label>
+        <label className="field">
+          <span>Carpeta de las copias de deshacer</span>
+          <small className="subtle">Donde se guardan los bloques originales antes de reparar en el origen. Para discos físicos debe estar en otro disco. Vacío: carpeta de datos de la app.</small>
+          <input className="input mono" value={draft.undoDir} placeholder="Carpeta de datos de BlockSmith" onChange={(e) => update({ undoDir: e.target.value })} aria-label="Carpeta de las copias de deshacer" />
+        </label>
         <div className="field">
           <span>Tema</span>
           <div className="segmented" role="group" aria-label="Tema">

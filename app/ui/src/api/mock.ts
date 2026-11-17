@@ -6,7 +6,7 @@
 import * as mock from "../mocks/data";
 import type { TreeNode } from "../types/models";
 import type {
-  AlertDto, ChangeKey, DiffDto, DiskDto, NvmeHealthDto, RuleDto, SnapshotDto, FindingDto, JobFinishedEvent, JobKind, JobProgressEvent, RebuildDto, ReportDto, SessionDto,
+  AlertDto, ChangeKey, DeviceOptionDto, PreflightDto, TxDto, DiffDto, DiskDto, NvmeHealthDto, RuleDto, SnapshotDto, FindingDto, JobFinishedEvent, JobKind, JobProgressEvent, RebuildDto, ReportDto, SessionDto,
   SettingsDto, SourceDto, TreeNodeDto, VolumeDto,
 } from "../types/api";
 import type { Backend } from "./backend";
@@ -26,7 +26,21 @@ const PHASES: Record<JobKind, string[]> = {
   plan: ["Cabecera del volumen", "Catálogo: estructura", "Catálogo: coherencia", "Plan de reconstrucción"],
   export: ["Copiando la imagen", "Aplicando la reconstrucción", "Verificando la imagen reparada"],
   health: ["Leyendo la salud de los discos"],
+  repair: ["Comprobaciones previas", "Recalculando el plan sobre el contenido actual", "Guardando la copia de deshacer",
+    "Escribiendo el directorio nuevo", "Actualizando la cabecera del volumen", "Liberando los bloques antiguos", "Verificando el volumen"],
+  rollback: ["Revirtiendo la transacción"],
+  complete: ["Completando la transacción", "Verificando el volumen"],
 };
+
+// ── Escritura directa (F5) ─────────────────────────────────────────────────
+const txState: TxDto[] = [
+  {
+    id: 1, rebuildId: 1, sessionId: 1, volumeName: "Fotos 2019", devicePath: "/dev/disk4s2", status: "interrupted", mode: "helper",
+    undoLogPath: "/Users/usuario/Library/Application Support/dev.blocksmith.desktop/undo/blocksmith-tx1-r1-20261117-080610.undo",
+    undoExists: true, blocksTotal: 6, blocksWritten: 3, startedAt: "2026-11-17T08:06:10Z", finishedAt: null,
+    error: "La caja USB se desconectó durante la escritura.", canRollback: true, canComplete: true,
+  },
+];
 
 // ── Salud de los discos (a partir de mocks/data.ts) ─────────────────────────
 const diskPaths: Record<number, string> = { 1: "/dev/disk0", 2: "/dev/disk4", 3: "/dev/sdb", 4: "\\\\.\\PhysicalDrive1", 5: "/dev/disk6" };
@@ -145,7 +159,7 @@ const state: State = {
     { id: 1, rebuildId: 1, cnid: 2201, change: "valence_fixed", oldPath: "/Navidad", newPath: "/Navidad", itemType: "folder", sizeBytes: null, note: "412 → 410 elementos" },
   ],
   reports: [],
-  settings: { outputDir: "/home/usuario/BlockSmith", theme: "system", logLevel: "info", exportEncryptedByDefault: true, healthCheckOnStart: true },
+  settings: { outputDir: "/home/usuario/BlockSmith", theme: "system", logLevel: "info", exportEncryptedByDefault: true, healthCheckOnStart: true, undoDir: "" },
   damaged: new Set([1]),
   nextId: 100,
 };
@@ -441,6 +455,76 @@ export const mockBackend: Backend = {
     if (Object.values(rule.threshold).some((v) => v < 0)) throw new Error("los umbrales no pueden ser negativos");
     healthState.rules = healthState.rules.map((r) => (r.id === rule.id ? { ...clone(rule), pollIntervalMin: Math.min(10_080, Math.max(15, rule.pollIntervalMin)) } : r));
     return clone(healthState.rules);
+  },
+  async preflight(rebuildId) {
+    await wait(250);
+    const r = rebuildOf(rebuildId);
+    const applied = txState.some((t) => t.rebuildId === rebuildId && (t.status === "verified" || t.status === "finalized"));
+    const pending = txState.some((t) => t.rebuildId === rebuildId && t.status === "interrupted");
+    const checks: PreflightDto["checks"] = [
+      applied
+        ? { id: "plan", label: "Plan pendiente de aplicar", status: "block", detail: "Esta reconstrucción ya se aplicó al origen." }
+        : { id: "plan", label: "Plan pendiente de aplicar", status: "ok", detail: `${r.changes.reduce((n, c) => n + c.count, 0)} cambios revisados; se recalculará justo antes de escribir.` },
+      pending
+        ? { id: "pending_tx", label: "Sin transacciones a medias", status: "block", detail: "Hay una escritura interrumpida en este volumen: revísala en «Transacciones» antes de continuar." }
+        : { id: "pending_tx", label: "Sin transacciones a medias", status: "ok", detail: "Ninguna escritura pendiente en este volumen." },
+      { id: "target", label: "Origen disponible", status: "ok", detail: `Se escribirá en la imagen ${r.sourcePath}.` },
+      { id: "boot", label: "No es el disco de arranque", status: "ok", detail: "El sistema en uso está en otro disco." },
+      { id: "mounted", label: "Volumen desmontado", status: "ok", detail: "No está en uso por el sistema." },
+      { id: "journal", label: "Journal sin transacciones pendientes", status: "ok", detail: "Journal limpio." },
+      { id: "health", label: "Salud del disco", status: "ok", detail: "No aplica a imágenes." },
+      { id: "undo", label: "Copia de deshacer en otro disco", status: "warn", detail: "La copia se guarda en el mismo disco que la imagen: protege ante cortes, pero no ante un fallo de ese disco." },
+    ];
+    return {
+      rebuildId, target: r.sourcePath, volumeName: r.volumeName, mode: "in_process", checks,
+      canProceed: checks.every((c) => c.status !== "block"), undoDir: "/home/usuario/.local/share/dev.blocksmith.desktop/undo",
+    };
+  },
+  async startRepair(rebuildId, confirm) {
+    const r = rebuildOf(rebuildId);
+    if (confirm.trim() !== (r.volumeName ?? "")) throw new Error(`para confirmar escribe exactamente el nombre del volumen: «${r.volumeName}»`);
+    return runJob("repair", () => {
+      const id = state.nextId++;
+      const undoLogPath = `/home/usuario/.local/share/dev.blocksmith.desktop/undo/blocksmith-tx${id}-r${rebuildId}.undo`;
+      txState.unshift({
+        id, rebuildId, sessionId: r.sessionId, volumeName: r.volumeName, devicePath: r.sourcePath, status: "verified", mode: "in_process",
+        undoLogPath, undoExists: true, blocksTotal: 6, blocksWritten: 6, startedAt: nowIso(), finishedAt: nowIso(), error: null, canRollback: true, canComplete: false,
+      });
+      Object.assign(r, { status: "done", target: "in_place", verified: true, outputPath: r.sourcePath, finishedAt: nowIso() });
+      sessionOf(r.sessionId).status = "exported";
+      return { txId: id, verified: true, remainingFindings: [], undoLogPath, rebuildId };
+    });
+  },
+  async listTransactions() {
+    await wait(100);
+    return clone(txState);
+  },
+  async startTxRollback(txId) {
+    const t = txState.find((x) => x.id === txId);
+    if (!t?.canRollback) throw new Error("esta transacción no se puede revertir");
+    return runJob("rollback", () => {
+      Object.assign(t, { status: "rolled_back", blocksWritten: 0, canRollback: false, canComplete: false, finishedAt: nowIso() });
+      const r = state.rebuilds.find((x) => x.id === t.rebuildId);
+      if (r?.target === "in_place") Object.assign(r, { status: "planned", target: "new_image", verified: false, outputPath: null });
+      return { ...t };
+    });
+  },
+  async startTxComplete(txId) {
+    const t = txState.find((x) => x.id === txId);
+    if (!t?.canComplete) throw new Error("esta transacción no está interrumpida");
+    return runJob("complete", () => {
+      Object.assign(t, { status: "verified", blocksWritten: t.blocksTotal, canComplete: false, finishedAt: nowIso() });
+      return { ...t };
+    });
+  },
+  async listOpenDevices() {
+    await wait(150);
+    const list: DeviceOptionDto[] = [
+      { path: "/dev/nvme0n1", model: "Samsung SSD 980 PRO 1TB", sizeBytes: 1_000_204_886_016, bus: "nvme", isBoot: true, readable: false },
+      { path: "/dev/sdb", model: "WDC WD40EFRX-68N32N0", sizeBytes: 4_000_787_030_016, bus: "sata", isBoot: false, readable: false },
+      { path: "/dev/sdc", model: "Samsung SSD 870 EVO (caja USB)", sizeBytes: 1_000_204_886_016, bus: "usb", isBoot: false, readable: true },
+    ];
+    return list;
   },
   async onHealthUpdated(cb) {
     healthCbs.add(cb);

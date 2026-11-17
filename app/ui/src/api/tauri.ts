@@ -58,6 +58,12 @@ export const tauriBackend: Backend = {
   ackAlert: (id) => invoke("ack_alert", { id }),
   getAlertRules: () => invoke("get_alert_rules"),
   setAlertRule: (rule) => invoke("set_alert_rule", { rule }),
+  preflight: (rebuildId) => invoke("preflight", { rebuildId }),
+  startRepair: (rebuildId, confirm) => invoke("start_repair", { rebuildId, confirm }),
+  listTransactions: () => invoke("list_transactions"),
+  startTxRollback: (txId, force) => invoke("start_tx_rollback", { txId, force }),
+  startTxComplete: (txId) => invoke("start_tx_complete", { txId }),
+  listOpenDevices: () => invoke("list_open_devices"),
   onHealthUpdated: (cb) => listen("health-updated", () => cb()),
 
   onJobProgress: (cb) => listen<JobProgressEvent>("job-progress", (e) => cb(e.payload)),

@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, Filter, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Download, Filter, ShieldCheck, Wrench } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { backend } from "../api";
@@ -31,10 +31,15 @@ export function RebuildCompare() {
           <h1>{r.volumeName ?? "Volumen"} · reconstrucción</h1>
           <p>Vista previa: nada se ha escrito todavía. Revisa los cambios y exporta una imagen reparada.</p>
         </div>
-        {r.status === "done" && r.outputPath ? (
+        {r.status === "done" && r.target === "in_place" ? (
+          <Link className="btn btn--secondary" to={`/reconstruccion/${id}/aplicar`}><ShieldCheck aria-hidden /> Ver reparación</Link>
+        ) : r.status === "done" && r.outputPath ? (
           <Link className="btn btn--secondary" to={`/reconstruccion/${id}/exportar`}><ShieldCheck aria-hidden /> Ver exportación</Link>
         ) : (
-          <Link className="btn btn--primary" to={`/reconstruccion/${id}/exportar`}><Download aria-hidden /> Exportar imagen reparada</Link>
+          <div className="row row--wrap">
+            <Link className="btn btn--secondary" to={`/reconstruccion/${id}/aplicar`}><Wrench aria-hidden /> Reparar en el origen…</Link>
+            <Link className="btn btn--primary" to={`/reconstruccion/${id}/exportar`}><Download aria-hidden /> Exportar imagen reparada</Link>
+          </div>
         )}
       </div>
 

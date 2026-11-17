@@ -1,5 +1,5 @@
 import type {
-  AlertDto, AppInfo, DiffDto, DiskDetailDto, DiskDto, HealthStatusDto, RuleDto, FindingDto, JobFinishedEvent, JobProgressEvent, RebuildDto, ReportDto, SessionDto, SettingsDto,
+  AlertDto, AppInfo, DeviceOptionDto, PreflightDto, TxDto, DiffDto, DiskDetailDto, DiskDto, HealthStatusDto, RuleDto, FindingDto, JobFinishedEvent, JobProgressEvent, RebuildDto, ReportDto, SessionDto, SettingsDto,
   SourceDto, TreeNodeDto, VolumeDto,
 } from "../types/api";
 
@@ -48,6 +48,13 @@ export interface Backend {
   ackAlert(id: number): Promise<void>;
   getAlertRules(): Promise<RuleDto[]>;
   setAlertRule(rule: RuleDto): Promise<RuleDto[]>;
+  preflight(rebuildId: number): Promise<PreflightDto>;
+  startRepair(rebuildId: number, confirm: string): Promise<number>;
+  listTransactions(): Promise<TxDto[]>;
+  startTxRollback(txId: number, force: boolean): Promise<number>;
+  startTxComplete(txId: number): Promise<number>;
+  listOpenDevices(): Promise<DeviceOptionDto[]>;
+
   /** Aviso de que la app actualizó la salud en segundo plano. */
   onHealthUpdated(cb: () => void): Promise<() => void>;
 

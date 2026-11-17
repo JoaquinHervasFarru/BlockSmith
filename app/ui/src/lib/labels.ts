@@ -33,6 +33,7 @@ export const sessionStatusLabel: Record<string, string> = {
 export const jobKindLabel: Record<string, string> = {
   scan: "Análisis del volumen", plan: "Plan de reconstrucción", export: "Exportación de la imagen reparada",
   health: "Lectura de la salud de los discos",
+  repair: "Reparación en el origen", rollback: "Reversión de una transacción", complete: "Compleción de una transacción",
 };
 
 /** Etiqueta del sistema de archivos para cualquier cadena del backend. */
@@ -60,3 +61,8 @@ export function timeAgo(iso: string): string {
   if (s < 86_400 * 2) return `hace ${Math.round(s / 3600)} h`;
   return `hace ${Math.round(s / 86_400)} días`;
 }
+
+export const txStatusLabel: Record<string, string> = {
+  prepared: "Preparada", writing: "Escribiendo", committed: "Cabecera actualizada", finalized: "Aplicada sin verificar",
+  verified: "Aplicada y verificada", rolled_back: "Revertida", interrupted: "Interrumpida", failed: "Fallida",
+};
