@@ -131,7 +131,12 @@ pub struct FolderRecord {
     pub valence: u32,
     pub folder_id: u32,
     pub info: CommonInfo,
+    /// Número de subcarpetas; solo es válido si `info.flags` tiene [`FOLDER_HAS_COUNT`].
+    pub folder_count: u32,
 }
+
+/// Flag de carpeta: el campo `folder_count` está en uso.
+pub const FOLDER_HAS_COUNT: u16 = 0x0010;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct FileRecord {
@@ -165,6 +170,7 @@ impl CatalogRecord {
                 valence: be_u32(b, 4),
                 folder_id: be_u32(b, 8),
                 info: CommonInfo::parse(b, 12),
+                folder_count: be_u32(b, 84),
             })),
             rtype::FILE if b.len() >= Self::FILE_SIZE => Some(Self::File(FileRecord {
                 file_id: be_u32(b, 8),
@@ -195,6 +201,7 @@ impl CatalogRecord {
                 put_be_u16(&mut b, 0, rtype::FOLDER);
                 put_be_u32(&mut b, 4, f.valence);
                 put_be_u32(&mut b, 8, f.folder_id);
+                put_be_u32(&mut b, 84, f.folder_count);
                 b
             }
             Self::File(f) => {
@@ -237,7 +244,7 @@ mod tests {
             flags: 0, create_date: 1, content_mod_date: 2, attribute_mod_date: 3, access_date: 4, backup_date: 0,
             permissions: [0; 16], user_info: [0; 16], finder_info: [0; 16], text_encoding: 0,
         };
-        let folder = CatalogRecord::Folder(FolderRecord { valence: 3, folder_id: 17, info: info.clone() });
+        let folder = CatalogRecord::Folder(FolderRecord { valence: 3, folder_id: 17, info: info.clone(), folder_count: 0 });
         assert_eq!(CatalogRecord::parse(&folder.to_bytes()).unwrap(), folder);
         let thread = CatalogRecord::FileThread(ThreadRecord { parent_id: 17, name: to_hfs_name("a.txt") });
         assert_eq!(CatalogRecord::parse(&thread.to_bytes()).unwrap(), thread);

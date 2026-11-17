@@ -7,7 +7,7 @@
 //! enlazados, para que un enlace roto no oculte datos (barrido).
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use blocksmith_fs_core::{
     Finding, FsError, FsInfo, FsKind, FsResult, ObjectType, Progress, ScanResult, ScanStats, Severity,
@@ -35,6 +35,8 @@ pub struct CatalogSnapshot {
     pub files: BTreeMap<u32, (CatalogKey, FileRecord)>,
     /// cnid → (es carpeta, thread)
     pub threads: BTreeMap<u32, (bool, ThreadRecord)>,
+    /// CNIDs cuyos registros solo se encontraron por barrido (hojas no enlazadas).
+    pub swept: BTreeSet<u32>,
 }
 
 impl CatalogSnapshot {
@@ -62,6 +64,14 @@ impl CatalogSnapshot {
 pub struct HfsScan {
     pub result: ScanResult,
     pub catalog: CatalogSnapshot,
+    /// Extents de desbordamiento válidos, por (fileID, tipo de fork).
+    pub overflow: OverflowMap,
+    /// Nodos del catálogo marcados como asignados en su mapa (incluye la cabecera).
+    pub catalog_nodes_used: u64,
+    pub catalog_node_size: u16,
+    pub extents_node_size: u16,
+    /// Registros del catálogo descartados por ilegibles.
+    pub dropped_records: u64,
 }
 
 #[derive(Default)]
@@ -127,14 +137,18 @@ impl Findings {
 /// Resultado del recorrido estructural de un B-tree.
 #[derive(Default)]
 struct TreeScan {
-    /// (clave sin longitud, datos, nodo) en orden de la cadena de hojas y
-    /// después los de hojas no enlazadas.
-    records: Vec<(Vec<u8>, Vec<u8>, u32)>,
+    /// (clave sin longitud, datos, nodo, enlazado) en orden de la cadena de hojas
+    /// y después los de hojas no enlazadas.
+    records: Vec<RawRecord>,
     total_nodes: u64,
+    allocated_nodes: u64,
     damaged_nodes: u64,
     leaf_nodes: u64,
     leaf_used_bytes: u64,
 }
+
+/// (clave sin longitud, datos, nodo, alcanzable por la cadena de hojas)
+type RawRecord = (Vec<u8>, Vec<u8>, u32, bool);
 
 type KeyCmp<'c> = &'c dyn Fn(&[u8], &[u8]) -> Ordering;
 
@@ -173,6 +187,7 @@ fn scan_tree(
 
     // 1) Leer y validar todos los nodos asignados.
     let mut nodes: HashMap<u32, Node> = HashMap::new();
+    let mut rescued_nodes: HashSet<u32> = HashSet::new();
     let mut allocated = 1u32; // el nodo cabecera
     let limit = h.total_nodes.min((tree.reader.logical_size() / ns) as u32);
     for n in 1..limit {
@@ -192,8 +207,18 @@ fn scan_tree(
             }
             Ok(Err(e)) => {
                 out.damaged_nodes += 1;
+                // Si solo está dañado el tipo de nodo pero los registros son legibles, se rescata como hoja.
+                let rescued = rescue_leaf(tree, n, &h)?;
+                let extra = match &rescued {
+                    Some(node) => format!("; se rescataron sus {} registros", node.records.len()),
+                    None => String::new(),
+                };
                 f.push("HFS_NODE_UNREADABLE", Severity::Critical, ObjectType::Node, None, Some(n), None,
-                    format!("Árbol {name}: nodo {n} ilegible ({e})"), tree_details(json!({})));
+                    format!("Árbol {name}: nodo {n} ilegible ({e}){extra}"), tree_details(json!({ "rescued": rescued.is_some() })));
+                if let Some(node) = rescued {
+                    rescued_nodes.insert(n);
+                    nodes.insert(n, node);
+                }
             }
             Err(e) => {
                 out.damaged_nodes += 1;
@@ -202,6 +227,7 @@ fn scan_tree(
             }
         }
     }
+    out.allocated_nodes = allocated as u64;
     let expected_free = h.total_nodes.saturating_sub(allocated);
     if h.free_nodes != expected_free {
         f.push("HFS_BTREE_FREE_COUNT", Severity::Cosmetic, ObjectType::Header, None, Some(0), None,
@@ -274,7 +300,7 @@ fn scan_tree(
                 }
                 *last_key = Some(k.to_vec());
             }
-            out.records.push((k.to_vec(), d.to_vec(), node.number));
+            out.records.push((k.to_vec(), d.to_vec(), node.number, check_order && !rescued_nodes.contains(&node.number)));
         }
     };
     for n in &chain {
@@ -315,6 +341,8 @@ fn scan_tree(
     } else {
         let mut stack = vec![(h.root_node, h.tree_depth as u8, None::<Vec<u8>>)];
         let mut seen = HashSet::new();
+        // (altura, primera clave, nodo) de cada nodo de índice, para comprobar enlaces entre hermanos.
+        let mut index_nodes: Vec<(u8, Vec<u8>, u32)> = Vec::new();
         let mut depth_reported = false;
         while let Some((n, expected_height, parent_key)) = stack.pop() {
             if !seen.insert(n) {
@@ -343,6 +371,9 @@ fn scan_tree(
                     reachable_leaves.insert(n);
                 }
                 kind::INDEX => {
+                    if let Some(k) = (!node.records.is_empty()).then(|| key_of(node, 0)).flatten() {
+                        index_nodes.push((node.desc.height, k, n));
+                    }
                     for i in 0..node.records.len() {
                         let Some((k, d)) = split_record(node.record(i), true, &h) else {
                             f.push("HFS_RECORD_INVALID", Severity::Critical, ObjectType::Node, None, Some(n), None,
@@ -355,6 +386,22 @@ fn scan_tree(
                 }
                 _ => {}
             }
+        }
+        // Enlaces entre nodos de índice del mismo nivel, en orden de clave.
+        index_nodes.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| cmp(&a.1, &b.1)));
+        let mut bad_siblings = 0;
+        for (i, (height, _, n)) in index_nodes.iter().enumerate() {
+            let next = index_nodes.get(i + 1).filter(|x| x.0 == *height).map(|x| x.2).unwrap_or(0);
+            let prev = i.checked_sub(1).and_then(|j| index_nodes.get(j)).filter(|x| x.0 == *height).map(|x| x.2).unwrap_or(0);
+            let d = nodes[n].desc;
+            if d.flink != next || d.blink != prev {
+                bad_siblings += 1;
+            }
+        }
+        if bad_siblings > 0 {
+            f.push("HFS_BTREE_SIBLING_LINK", Severity::Minor, ObjectType::Node, None, None, None,
+                format!("Árbol {name}: {bad_siblings} nodos de índice con enlaces incorrectos a sus hermanos"),
+                tree_details(json!({ "nodes": bad_siblings })));
         }
         let missing = chain.iter().filter(|n| !reachable_leaves.contains(n)).count();
         if missing > 0 {
@@ -407,15 +454,17 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
     let ext_reader = vol.fork_reader(&vh.extents_file, cnid::EXTENTS_FILE, true, &no_overflow);
     let mut overflow = OverflowMap::new();
     let mut stats = ScanStats::default();
+    let mut extents_node_size = 4096u16;
     match BTree::open(ext_reader)? {
         Ok(tree) => {
             let cmp = |a: &[u8], b: &[u8]| match (ExtentKey::parse(a), ExtentKey::parse(b)) {
                 (Some(x), Some(y)) => x.compare(&y),
                 _ => Ordering::Equal,
             };
+            extents_node_size = tree.header.node_size;
             let ts = scan_tree("extents", &tree, &cmp, &mut f, progress)?;
             stats.nodes_damaged += ts.damaged_nodes;
-            for (k, d, node) in ts.records {
+            for (k, d, node, _) in ts.records {
                 match (ExtentKey::parse(&k), parse_record(&d)) {
                     (Some(key), Some(exts)) => overflow.entry((key.file_id, key.fork_type)).or_default().push((key.start_block, exts)),
                     _ => f.push("HFS_RECORD_INVALID", Severity::Critical, ObjectType::Extent, None, Some(node), None,
@@ -452,7 +501,10 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
     }
 
     progress.phase("Catálogo: coherencia");
+    let catalog_nodes_used = ts.allocated_nodes;
+    let before_invalid = f.per_code.get("HFS_RECORD_INVALID").copied().unwrap_or(0);
     let catalog = build_catalog(ts.records, &mut f);
+    let dropped_records = (f.per_code.get("HFS_RECORD_INVALID").copied().unwrap_or(0) - before_invalid) as u64;
     check_catalog(vh, &catalog, &mut f);
     stats.files = catalog.files.len() as u64;
     stats.folders = catalog.folders.len().saturating_sub(1) as u64;
@@ -473,7 +525,26 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
         journaled: vh.is_journaled(),
         case_sensitive: binary,
     };
-    Ok(HfsScan { result: ScanResult { info, stats, findings: f.finish() }, catalog })
+    Ok(HfsScan {
+        result: ScanResult { info, stats, findings: f.finish() },
+        catalog,
+        overflow,
+        catalog_nodes_used,
+        catalog_node_size: tree.header.node_size,
+        extents_node_size,
+        dropped_records,
+    })
+}
+
+/// Intenta leer como hoja un nodo cuyo descriptor tiene un tipo no válido.
+fn rescue_leaf(tree: &BTree<'_>, n: u32, h: &crate::btree::HeaderRecord) -> FsResult<Option<Node>> {
+    let mut raw = tree.read_raw(n)?;
+    raw[8] = kind::LEAF as u8;
+    raw[9] = 1;
+    let Ok(node) = Node::parse(n, raw) else { return Ok(None) };
+    let valid = !node.records.is_empty()
+        && (0..node.records.len()).all(|i| split_record(node.record(i), false, h).is_some_and(|(k, d)| !k.is_empty() && d.len() >= 2));
+    Ok(valid.then_some(node))
 }
 
 fn check_journal(vol: &Volume<'_>, f: &mut Findings) -> FsResult<()> {
@@ -515,10 +586,10 @@ fn check_journal(vol: &Volume<'_>, f: &mut Findings) -> FsResult<()> {
     Ok(())
 }
 
-fn build_catalog(records: Vec<(Vec<u8>, Vec<u8>, u32)>, f: &mut Findings) -> CatalogSnapshot {
+fn build_catalog(records: Vec<RawRecord>, f: &mut Findings) -> CatalogSnapshot {
     let mut cat = CatalogSnapshot::default();
     let mut seen_keys: HashMap<CatalogKey, Vec<u8>> = HashMap::new();
-    for (k, d, node) in records {
+    for (k, d, node, linked) in records {
         let (Some(key), Some(rec)) = (CatalogKey::parse(&k), CatalogRecord::parse(&d)) else {
             f.push("HFS_RECORD_INVALID", Severity::Critical, ObjectType::Node, None, Some(node), None,
                 format!("Registro del catálogo ilegible en el nodo {node}"), json!({ "tree": "catálogo" }));
@@ -533,6 +604,15 @@ fn build_catalog(records: Vec<(Vec<u8>, Vec<u8>, u32)>, f: &mut Findings) -> Cat
             continue;
         }
         seen_keys.insert(key.clone(), d);
+        match &rec {
+            CatalogRecord::Folder(r) if !linked => {
+                cat.swept.insert(r.folder_id);
+            }
+            CatalogRecord::File(r) if !linked => {
+                cat.swept.insert(r.file_id);
+            }
+            _ => {}
+        }
         match rec {
             CatalogRecord::Folder(r) => {
                 if let Some(prev) = cat.folders.insert(r.folder_id, (key.clone(), r.clone())) {

@@ -94,12 +94,16 @@ fn broken_link_records_are_recovered_by_sweep() {
 }
 
 #[test]
-fn unreadable_node_leaves_orphans() {
+fn unreadable_node_records_are_rescued() {
     let mut img = build_volume(&multi_level(), &sample_tree()).unwrap();
     apply_damage(&mut img, Damage::NodeUnreadable).unwrap();
     let s = scan(img);
-    assert!(s.result.findings.iter().any(|f| f.severity == Severity::Critical));
-    assert!(s.catalog.files.len() < 42);
+    let f = s.result.findings.iter().find(|f| f.code == "HFS_NODE_UNREADABLE").expect("hallazgo");
+    assert_eq!(f.severity, Severity::Critical);
+    assert!(f.message.contains("se rescataron"), "{}", f.message);
+    // El tipo de nodo estaba dañado pero sus registros eran legibles: no se pierde nada.
+    assert_eq!(s.catalog.files.len(), 42);
+    assert!(!s.catalog.swept.is_empty());
 }
 
 /// Volúmenes creados por mkfs.hfsplus: un productor independiente del nuestro.
@@ -121,4 +125,25 @@ fn reads_mkfs_volumes() {
         assert!(serious.is_empty(), "mkfs {args:?}: {serious:#?}");
         assert_eq!(s.result.info.name.as_deref(), Some("Externo"));
     }
+}
+
+#[test]
+fn detects_broken_index_sibling_links() {
+    use blocksmith_fs_hfsplus::fixtures::Entry;
+    use blocksmith_fs_hfsplus::volume_header::VolumeHeader;
+    let tree: Vec<Entry> = (0..40)
+        .map(|d| Entry::folder(&format!("C{d:02}"), (0..60).map(|f| Entry::file(&format!("archivo-{f:03}.txt"), "x")).collect()))
+        .collect();
+    let mut img = build_volume(&BuildOptions { size_bytes: 64 * 1024 * 1024, ..Default::default() }, &tree).unwrap();
+    let vh = VolumeHeader::parse(&img[1024..1536]).unwrap();
+    let base = vh.catalog_file.extents[0].start_block as usize * vh.block_size as usize;
+    let ns = 4096;
+    let total = vh.catalog_file.logical_size as usize / ns;
+    // Primer nodo de índice con hermano siguiente: se rompe su enlace.
+    let n = (1..total)
+        .find(|n| img[base + n * ns + 8] == 0 && img[base + n * ns..base + n * ns + 4] != [0, 0, 0, 0] && img[base + n * ns + 10..base + n * ns + 12] != [0, 0])
+        .expect("el árbol debe tener al menos dos nodos de índice en un nivel");
+    img[base + n * ns..base + n * ns + 4].copy_from_slice(&0u32.to_be_bytes());
+    let s = scan(img);
+    assert!(s.result.findings.iter().any(|f| f.code == "HFS_BTREE_SIBLING_LINK"), "{:#?}", s.result.findings);
 }

@@ -2,15 +2,16 @@
 //!
 //! El entorno de CI no puede montar HFS+, así que las fixtures se construyen
 //! byte a byte. Su validez se comprueba con un verificador independiente
-//! (`fsck.hfsplus`) en los tests de integración. El empaquetado de B-trees
-//! ([`pack_btree`]) es la base del reconstructor de la fase F2.
+//! (`fsck.hfsplus`) en los tests de integración. Usa el mismo empaquetado de
+//! B-trees que el reconstructor ([`crate::btree::pack`]).
 
 use std::cmp::Ordering;
 
 use blocksmith_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
 
 use crate::bitmap::AllocationBitmap;
-use crate::btree::{attr as battr, kind, HeaderRecord, NodeDescriptor, DESCRIPTOR_SIZE};
+use crate::btree::pack::{pack_btree, TreeSpec};
+use crate::btree::{attr as battr, HeaderRecord, DESCRIPTOR_SIZE};
 use crate::catalog::{cnid, CatalogKey, CatalogRecord, CommonInfo, FileRecord, FolderRecord, ThreadRecord, FILE_THREAD_EXISTS};
 use crate::unicode::to_hfs_name;
 use crate::volume_header::{attr, Extent, ForkData, VolumeHeader};
@@ -83,7 +84,7 @@ pub fn sample_tree() -> Vec<Entry> {
     ]
 }
 
-fn info(mode: u16, flags: u16) -> CommonInfo {
+pub(crate) fn info(mode: u16, flags: u16) -> CommonInfo {
     let mut permissions = [0u8; 16];
     put_be_u16(&mut permissions, 10, mode);
     CommonInfo {
@@ -98,158 +99,6 @@ fn info(mode: u16, flags: u16) -> CommonInfo {
         finder_info: [0; 16],
         text_encoding: 0,
     }
-}
-
-/// Parámetros de un B-tree a empaquetar.
-pub struct TreeSpec {
-    pub node_size: u16,
-    pub max_key_length: u16,
-    pub attributes: u32,
-    pub key_compare_type: u8,
-    pub total_nodes: u32,
-    pub max_records_per_leaf: Option<usize>,
-}
-
-/// Empaqueta registros hoja ya ordenados (`clave con keyLength` + datos) en nodos.
-/// Devuelve los nodos (el 0 es la cabecera) y el header record.
-pub fn pack_btree(records: &[(Vec<u8>, Vec<u8>)], spec: &TreeSpec) -> Result<(Vec<Vec<u8>>, HeaderRecord), String> {
-    let ns = spec.node_size as usize;
-    let fits = |sizes: &[usize]| DESCRIPTOR_SIZE + sizes.iter().sum::<usize>() + 2 * (sizes.len() + 1) <= ns;
-
-    // Agrupa registros (bytes) en nodos respetando capacidad y límite.
-    let group = |recs: Vec<Vec<u8>>, limit: Option<usize>| -> Result<Vec<Vec<Vec<u8>>>, String> {
-        let mut out: Vec<Vec<Vec<u8>>> = Vec::new();
-        let mut cur: Vec<Vec<u8>> = Vec::new();
-        for r in recs {
-            if r.len() % 2 != 0 {
-                return Err("registro de longitud impar".into());
-            }
-            let mut sizes: Vec<usize> = cur.iter().map(Vec::len).collect();
-            sizes.push(r.len());
-            if !cur.is_empty() && (!fits(&sizes) || limit.is_some_and(|l| cur.len() >= l)) {
-                out.push(std::mem::take(&mut cur));
-            }
-            if !fits(&[r.len()]) {
-                return Err("registro mayor que un nodo".into());
-            }
-            cur.push(r);
-        }
-        if !cur.is_empty() {
-            out.push(cur);
-        }
-        Ok(out)
-    };
-
-    let leaf_recs: Vec<Vec<u8>> = records.iter().map(|(k, d)| [k.as_slice(), d.as_slice()].concat()).collect();
-    let mut levels: Vec<Vec<Vec<Vec<u8>>>> = vec![group(leaf_recs, spec.max_records_per_leaf)?];
-    let mut first_keys: Vec<Vec<Vec<u8>>> = vec![records_first_keys(records, &levels[0])];
-    let mut next_node = 1u32;
-    let mut numbers: Vec<Vec<u32>> = vec![(0..levels[0].len() as u32).map(|i| next_node + i).collect()];
-    next_node += levels[0].len() as u32;
-
-    // Niveles de índice hasta que quede un solo nodo.
-    while !records.is_empty() && levels.last().map(Vec::len).unwrap_or(0) > 1 {
-        let lvl = levels.len() - 1;
-        let mut index_recs = Vec::new();
-        for (key, child) in first_keys[lvl].iter().zip(&numbers[lvl]) {
-            let mut k = key.clone();
-            if spec.attributes & battr::VARIABLE_INDEX_KEYS == 0 {
-                k.resize(2 + spec.max_key_length as usize, 0);
-            }
-            k.extend_from_slice(&child.to_be_bytes());
-            index_recs.push(k);
-        }
-        let grouped = group(index_recs, None)?;
-        let keys: Vec<Vec<u8>> = {
-            let mut i = 0;
-            grouped.iter().map(|g| {
-                let k = first_keys[lvl][i].clone();
-                i += g.len();
-                k
-            }).collect()
-        };
-        numbers.push((0..grouped.len() as u32).map(|i| next_node + i).collect());
-        next_node += grouped.len() as u32;
-        levels.push(grouped);
-        first_keys.push(keys);
-    }
-
-    let used = if records.is_empty() { 1 } else { next_node };
-    if used > spec.total_nodes {
-        return Err(format!("el árbol necesita {used} nodos y solo hay {}", spec.total_nodes));
-    }
-    let map_bytes = ns - DESCRIPTOR_SIZE - HeaderRecord::SIZE - 128 - 8;
-    if spec.total_nodes as usize > map_bytes * 8 {
-        return Err("el árbol necesitaría nodos de mapa adicionales".into());
-    }
-
-    let mut nodes = vec![vec![0u8; ns]; spec.total_nodes as usize];
-    let depth = if records.is_empty() { 0 } else { levels.len() as u16 };
-    for (lvl, groups) in levels.iter().enumerate() {
-        if records.is_empty() {
-            break;
-        }
-        for (i, recs) in groups.iter().enumerate() {
-            let n = numbers[lvl][i];
-            let (flink, blink) = if lvl == 0 {
-                (numbers[0].get(i + 1).copied().unwrap_or(0), if i == 0 { 0 } else { numbers[0][i - 1] })
-            } else {
-                (0, 0)
-            };
-            let desc = NodeDescriptor {
-                flink,
-                blink,
-                kind: if lvl == 0 { kind::LEAF } else { kind::INDEX },
-                height: lvl as u8 + 1,
-                num_records: recs.len() as u16,
-            };
-            write_node(&mut nodes[n as usize], &desc, recs);
-        }
-    }
-    let leaves = &numbers[0];
-    let header = HeaderRecord {
-        tree_depth: depth,
-        root_node: if records.is_empty() { 0 } else { *numbers.last().and_then(|v| v.first()).unwrap_or(&0) },
-        leaf_records: records.len() as u32,
-        first_leaf_node: if records.is_empty() { 0 } else { leaves[0] },
-        last_leaf_node: if records.is_empty() { 0 } else { *leaves.last().unwrap_or(&0) },
-        node_size: spec.node_size,
-        max_key_length: spec.max_key_length,
-        total_nodes: spec.total_nodes,
-        free_nodes: spec.total_nodes - used,
-        clump_size: spec.total_nodes * spec.node_size as u32,
-        btree_type: 0,
-        key_compare_type: spec.key_compare_type,
-        attributes: spec.attributes,
-    };
-    let mut map = vec![0u8; map_bytes];
-    for n in 0..used {
-        map[n as usize / 8] |= 0x80 >> (n % 8);
-    }
-    let hdesc = NodeDescriptor { flink: 0, blink: 0, kind: kind::HEADER, height: 0, num_records: 3 };
-    write_node(&mut nodes[0], &hdesc, &[header.to_bytes().to_vec(), vec![0u8; 128], map]);
-    Ok((nodes, header))
-}
-
-fn records_first_keys(records: &[(Vec<u8>, Vec<u8>)], groups: &[Vec<Vec<u8>>]) -> Vec<Vec<u8>> {
-    let mut i = 0;
-    groups.iter().map(|g| {
-        let k = records[i].0.clone();
-        i += g.len();
-        k
-    }).collect()
-}
-
-fn write_node(node: &mut [u8], desc: &NodeDescriptor, recs: &[Vec<u8>]) {
-    desc.write(node);
-    let ns = node.len();
-    let mut off = DESCRIPTOR_SIZE;
-    for (i, r) in recs.iter().enumerate() {
-        put_be_u16(node, ns - 2 * (i + 1), off as u16);
-        node[off..off + r.len()].copy_from_slice(r);
-        off += r.len();
-    }
-    put_be_u16(node, ns - 2 * (recs.len() + 1), off as u16);
 }
 
 struct Flat {
@@ -270,7 +119,7 @@ fn flatten(entries: &[Entry], parent: u32, flat: &mut Flat) -> u32 {
                 let valence = flatten(children, id, flat);
                 flat.folders += 1;
                 flat.records.push((CatalogKey { parent_id: parent, name: n.clone() },
-                    CatalogRecord::Folder(FolderRecord { valence, folder_id: id, info: info(0o040755, 0) })));
+                    CatalogRecord::Folder(FolderRecord { valence, folder_id: id, info: info(0o040755, 0), folder_count: 0 })));
                 flat.records.push((CatalogKey { parent_id: id, name: vec![] },
                     CatalogRecord::FolderThread(ThreadRecord { parent_id: parent, name: n })));
             }
@@ -303,7 +152,7 @@ pub fn build_volume(opts: &BuildOptions, root: &[Entry]) -> Result<Vec<u8>, Stri
     let mut flat = Flat { records: Vec::new(), files: 0, folders: 0, next_id: cnid::FIRST_USER, data: Vec::new() };
     let root_valence = flatten(root, cnid::ROOT_FOLDER, &mut flat);
     flat.records.push((CatalogKey { parent_id: cnid::ROOT_PARENT, name: vname.clone() },
-        CatalogRecord::Folder(FolderRecord { valence: root_valence, folder_id: cnid::ROOT_FOLDER, info: info(0o040755, 0) })));
+        CatalogRecord::Folder(FolderRecord { valence: root_valence, folder_id: cnid::ROOT_FOLDER, info: info(0o040755, 0), folder_count: 0 })));
     flat.records.push((CatalogKey { parent_id: cnid::ROOT_FOLDER, name: vec![] },
         CatalogRecord::FolderThread(ThreadRecord { parent_id: cnid::ROOT_PARENT, name: vname })));
 
@@ -443,12 +292,17 @@ pub enum Damage {
     ExtentOutOfRange,
     BitmapLeak,
     BitmapUnderalloc,
+    /// Registro de carpeta ilegible; su thread record sobrevive.
+    FolderRecordLost,
+    /// Registro de carpeta y su thread ilegibles: el contenido queda huérfano.
+    FolderAndThreadLost,
 }
 
 impl Damage {
-    pub const ALL: [Damage; 10] = [
+    pub const ALL: [Damage; 12] = [
         Self::KeyOrder, Self::BrokenLink, Self::NodeUnreadable, Self::ValenceWrong, Self::FileCountWrong,
         Self::NextCnidLow, Self::ExtentOverlap, Self::ExtentOutOfRange, Self::BitmapLeak, Self::BitmapUnderalloc,
+        Self::FolderRecordLost, Self::FolderAndThreadLost,
     ];
 
     /// Código de hallazgo que el escaneo debe producir.
@@ -464,6 +318,7 @@ impl Damage {
             Self::ExtentOutOfRange => "HFS_EXTENT_OUT_OF_RANGE",
             Self::BitmapLeak => "HFS_BITMAP_LEAK",
             Self::BitmapUnderalloc => "HFS_BITMAP_UNDERALLOC",
+            Self::FolderRecordLost | Self::FolderAndThreadLost => "HFS_RECORD_INVALID",
         }
     }
 
@@ -479,6 +334,8 @@ impl Damage {
             Self::ExtentOutOfRange => "extent-out-of-range",
             Self::BitmapLeak => "bitmap-leak",
             Self::BitmapUnderalloc => "bitmap-underalloc",
+            Self::FolderRecordLost => "folder-record-lost",
+            Self::FolderAndThreadLost => "folder-and-thread-lost",
         }
     }
 }
@@ -629,6 +486,34 @@ pub fn apply_damage(img: &mut [u8], damage: Damage) -> Result<(), String> {
             let end = l.vh.total_blocks - 64;
             for b in end - 10..end {
                 set_bit(img, b, true);
+            }
+            Ok(())
+        }
+        Damage::FolderRecordLost | Damage::FolderAndThreadLost => {
+            // La carpeta con más hijos (la de fotos en sample_tree).
+            let mut best: Option<(usize, u32, u32)> = None; // (offset de datos, cnid, valence)
+            for n in l.leaves(img) {
+                for (off, _) in l.records(img, n) {
+                    let data = off + 2 + be_u16(img, off) as usize;
+                    if be_u16(img, data) == crate::catalog::rtype::FOLDER && be_u32(img, data + 8) != cnid::ROOT_FOLDER {
+                        let v = be_u32(img, data + 4);
+                        if best.map_or(true, |b| v > b.2) {
+                            best = Some((data, be_u32(img, data + 8), v));
+                        }
+                    }
+                }
+            }
+            let (data, id, _) = best.ok_or("no hay carpetas")?;
+            put_be_u16(img, data, 0x00FF);
+            if damage == Damage::FolderAndThreadLost {
+                for n in l.leaves(img) {
+                    for (off, _) in l.records(img, n) {
+                        let d = off + 2 + be_u16(img, off) as usize;
+                        if be_u32(img, off + 2) == id && be_u16(img, off + 6) == 0 {
+                            put_be_u16(img, d, 0x00FF);
+                        }
+                    }
+                }
             }
             Ok(())
         }

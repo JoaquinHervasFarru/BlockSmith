@@ -9,6 +9,7 @@ pub mod check;
 pub mod extents;
 pub mod fixtures;
 pub mod fork;
+pub mod rebuild;
 pub mod unicode;
 pub mod volume;
 pub mod volume_header;
@@ -52,7 +53,8 @@ impl FileSystem for HfsPlus {
 
     fn capabilities(&self) -> Capabilities {
         // F1: solo escaneo. Recuperación y reconstrucción llegan en F2.
-        Capabilities { scan: Support::Yes, recover: Support::No, rebuild: Support::No, write_in_place: Support::No }
+        // F2: escaneo y reconstrucción a imagen nueva. Escritura directa en F5.
+        Capabilities { scan: Support::Yes, recover: Support::No, rebuild: Support::Yes, write_in_place: Support::No }
     }
 
     fn scan(&self, ctx: &mut ScanContext<'_>) -> FsResult<ScanResult> {
@@ -64,7 +66,10 @@ impl FileSystem for HfsPlus {
         Err(FsError::Unsupported("recuperación de archivos (fase F2)"))
     }
 
-    fn plan_rebuild(&self, _ctx: &mut ScanContext<'_>) -> FsResult<RebuildPlan> {
-        Err(FsError::Unsupported("reconstrucción (fase F2)"))
+    fn plan_rebuild(&self, ctx: &mut ScanContext<'_>) -> FsResult<RebuildPlan> {
+        let vol = Volume::open(ctx.device)?.ok_or_else(|| FsError::Invalid("no es un volumen HFS+/HFSX".into()))?;
+        let scan = scan_volume(&vol, ctx.progress)?;
+        ctx.progress.phase("Reconstrucción del directorio");
+        rebuild::plan_rebuild(&vol, &scan)
     }
 }

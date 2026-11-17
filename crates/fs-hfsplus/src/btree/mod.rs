@@ -2,6 +2,7 @@
 //! offsets de registros al final del nodo (creciendo hacia atrás).
 
 pub mod header;
+pub mod pack;
 
 use blocksmith_io::endian::{be_u16, be_u32};
 use blocksmith_io::IoResult;

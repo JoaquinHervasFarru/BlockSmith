@@ -440,6 +440,7 @@ dependencies = [
  "blocksmith-fs-hfsplus",
  "blocksmith-io",
  "blocksmith-partition",
+ "blocksmith-rebuilder",
  "blocksmith-smart",
  "clap",
  "serde_json",
@@ -509,6 +510,7 @@ version = "0.1.0"
 dependencies = [
  "blocksmith-fs-core",
  "blocksmith-io",
+ "blocksmith-rebuilder",
  "serde",
  "serde_json",
  "tempfile",
@@ -562,7 +564,10 @@ dependencies = [
  "blocksmith-fs-core",
  "blocksmith-io",
  "rmp-serde",
+ "serde",
  "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
  "zstd",
 ]
 
