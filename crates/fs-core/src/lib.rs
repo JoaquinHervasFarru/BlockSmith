@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 pub use finding::{Finding, ObjectType, Severity};
-pub use plan::{BlockWrite, DiffChange, DiffEntry, RebuildPlan};
+pub use plan::{BlockWrite, DiffChange, DiffEntry, RebuildPlan, WritePhase};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

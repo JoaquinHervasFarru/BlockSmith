@@ -21,5 +21,6 @@ export const schemeLabel: Record<EncryptionScheme, string> = {
 
 export const changeLabel: Record<DiffChange, string> = {
   recovered: "Recuperado", moved_to_recovered: "A «Recovered Items»", renamed: "Nombre normalizado",
-  valence_fixed: "Recuento corregido", dropped: "Descartado", unchanged_flagged: "Sin cambios · revisar",
+  valence_fixed: "Recuento corregido", dropped: "Descartado",
+  data_truncated: "Datos truncados", data_cloned: "Datos duplicados", unchanged_flagged: "Sin cambios · revisar",
 };

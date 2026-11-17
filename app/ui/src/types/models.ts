@@ -138,7 +138,8 @@ export interface Rebuild {
 }
 
 export type DiffChange =
-  | "recovered" | "moved_to_recovered" | "renamed" | "valence_fixed" | "dropped" | "unchanged_flagged";
+  | "recovered" | "moved_to_recovered" | "renamed" | "valence_fixed" | "dropped"
+  | "data_truncated" | "data_cloned" | "unchanged_flagged";
 
 export interface DiffEntry {
   id: Id;
@@ -149,6 +150,7 @@ export interface DiffEntry {
   newPath: string | null;
   itemType: "file" | "folder";
   sizeBytes: number | null;
+  note?: string | null;
 }
 
 export interface WriteTransaction {

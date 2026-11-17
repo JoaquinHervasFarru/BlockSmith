@@ -109,16 +109,18 @@ CREATE TABLE rebuilds (
   verified              INTEGER NOT NULL DEFAULT 0,
   backup_metadata_path  TEXT
 );
+-- recovered_count/lost_count ya existen; experimental indica reconstrucciones sin garantías.
 
 CREATE TABLE diff_entries (
   id          INTEGER PRIMARY KEY,
   rebuild_id  INTEGER NOT NULL REFERENCES rebuilds(id) ON DELETE CASCADE,
   cnid        INTEGER NOT NULL,
-  change      TEXT NOT NULL CHECK (change IN ('recovered','moved_to_recovered','renamed','valence_fixed','dropped','unchanged_flagged')),
+  change      TEXT NOT NULL CHECK (change IN ('recovered','moved_to_recovered','renamed','valence_fixed','dropped','data_truncated','data_cloned','unchanged_flagged')),
   old_path    TEXT,
   new_path    TEXT,
   item_type   TEXT NOT NULL CHECK (item_type IN ('file','folder')),
-  size_bytes  INTEGER
+  size_bytes  INTEGER,
+  note        TEXT
 );
 
 CREATE TABLE write_transactions (
