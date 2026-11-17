@@ -1,0 +1,7 @@
+/* Orden: fuentes autoalojadas → tokens → base → primitivas → vistas */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+@import "./tokens.css";
+@import "./base.css";
+@import "./components.css";
+@import "./views.css";

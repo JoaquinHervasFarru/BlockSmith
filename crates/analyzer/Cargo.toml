@@ -1,0 +1,15 @@
+[package]
+name = "dirforge-analyzer"
+description = "Comprobaciones comunes y barrido de registros huérfanos."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
+dirforge-io = { version = "0.1.0", path = "../io" }

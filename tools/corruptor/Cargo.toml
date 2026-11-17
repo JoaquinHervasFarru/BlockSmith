@@ -1,0 +1,14 @@
+[package]
+name = "dirforge-corruptor"
+description = "Inyecta daños deterministas en imágenes de prueba (solo fixtures)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dirforge-io = { version = "0.1.0", path = "../../crates/io" }

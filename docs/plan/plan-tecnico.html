@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>DirForge — Plan técnico v3</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+  :root {
+    --ink: #172033; --muted: #5b6478; --line: #dfe3ec; --soft: #f4f6fa;
+    --brand: #3651d4; --brand-soft: #e9edff; --ember: #e0702b;
+    --ok: #1f9d6b; --warn: #c98a0c; --crit: #d23c4b;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: "Inter", "Noto Sans", "DejaVu Sans", sans-serif; color: var(--ink);
+         font-size: 9.6pt; line-height: 1.5; margin: 0; }
+  h1 { font-size: 26pt; letter-spacing: -0.02em; margin: 0 0 4mm; }
+  h2 { font-size: 15pt; margin: 9mm 0 3mm; padding-bottom: 1.5mm; border-bottom: 2px solid var(--brand);
+       letter-spacing: -0.01em; break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 6mm 0 2mm; color: var(--brand); break-after: avoid; }
+  h4 { font-size: 10pt; margin: 4mm 0 1.5mm; break-after: avoid; }
+  p { margin: 0 0 2.5mm; }
+  ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+  li { margin-bottom: 1mm; }
+  code { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; font-size: 8.4pt;
+         background: var(--soft); padding: 0 1mm; border-radius: 2px; }
+  pre { font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace; font-size: 7.6pt; line-height: 1.35;
+        background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 3mm;
+        white-space: pre; overflow: hidden; break-inside: avoid; margin: 0 0 3mm; }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 4mm; font-size: 8.6pt; break-inside: auto; }
+  tr { break-inside: avoid; }
+  th { text-align: left; background: var(--brand-soft); color: var(--ink); font-weight: 600;
+       padding: 1.6mm 2mm; border-bottom: 1px solid var(--line); }
+  td { padding: 1.6mm 2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .cover { height: 255mm; display: flex; flex-direction: column; justify-content: space-between;
+           break-after: page; }
+  .cover .mark { width: 22mm; height: 22mm; }
+  .cover .kicker { color: var(--brand); font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 9pt; }
+  .cover .sub { font-size: 13pt; color: var(--muted); max-width: 140mm; }
+  .stamp { display: inline-block; border: 2px solid var(--ok); color: var(--ok); font-weight: 700;
+           padding: 1.5mm 4mm; border-radius: 3px; letter-spacing: .08em; }
+  .meta td { border: none; padding: .8mm 0; font-size: 9.5pt; }
+  .meta td:first-child { color: var(--muted); width: 38mm; }
+  .note { border-left: 3px solid var(--ember); background: #fff5ee; padding: 2.5mm 3.5mm; margin: 0 0 3mm;
+          break-inside: avoid; }
+  .info { border-left: 3px solid var(--brand); background: var(--brand-soft); padding: 2.5mm 3.5mm; margin: 0 0 3mm;
+          break-inside: avoid; }
+  .tag { display: inline-block; font-size: 7.6pt; font-weight: 600; padding: .2mm 1.6mm; border-radius: 8px;
+         background: var(--soft); border: 1px solid var(--line); }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .crit { color: var(--crit); }
+  .toc ol { columns: 2; column-gap: 10mm; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 2mm; margin-bottom: 3mm; }
+  .sw { width: 27mm; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; font-size: 7.4pt; }
+  .sw i { display: block; height: 9mm; }
+  .sw span { display: block; padding: 1mm 1.5mm; }
+  .page-break { break-before: page; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div>
+    <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+      <rect x="2" y="2" width="60" height="60" rx="14" fill="#3651d4"/>
+      <path d="M18 20h16a12 12 0 0 1 0 24H18z" fill="none" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M40 24l8-6M42 32h9M40 40l8 6" stroke="#ffb27a" stroke-width="4" stroke-linecap="round"/>
+    </svg>
+    <p class="kicker" style="margin-top:10mm">Plan técnico · versión 3 (consolidada)</p>
+    <h1>DirForge</h1>
+    <p class="sub">Utilidad multiplataforma de verificación, recuperación y reconstrucción de estructuras de directorio
+      para HFS+, APFS, NTFS y ext4, con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.</p>
+  </div>
+  <div>
+    <p><span class="stamp">PLAN APROBADO</span></p>
+    <table class="meta">
+      <tr><td>Fecha</td><td>17 de noviembre de 2026</td></tr>
+      <tr><td>Estado</td><td>Aprobado: consolida v1 + v2 + ampliación de cifrado</td></tr>
+      <tr><td>Stack</td><td>Rust (motor) · Tauri 2 · React + TypeScript · SQLite</td></tr>
+      <tr><td>Nombre</td><td>«DirForge», nombre de trabajo, original e independiente</td></tr>
+    </table>
+  </div>
+</section>
+
+<section class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li>Visión y principios</li>
+    <li>Decisiones adoptadas</li>
+    <li>Funcionalidades</li>
+    <li>APFS: alcance por niveles</li>
+    <li>Capa de cifrado</li>
+    <li>Arquitectura del sistema</li>
+    <li>Estructura de carpetas</li>
+    <li>Modelo de datos</li>
+    <li>Vistas y componentes</li>
+    <li>Sistema de diseño</li>
+    <li>Estrategia de pruebas</li>
+    <li>Fases de desarrollo</li>
+    <li>Riesgos y mitigaciones</li>
+    <li>Propiedad intelectual (clean-room)</li>
+  </ol>
+</section>
+
+<h2>1. Visión y principios</h2>
+<p>DirForge toma como inspiración funcional una categoría de utilidades de disco ya conocida: en vez de parchear el
+  directorio dañado, <strong>recorre el volumen, recupera toda la información de archivos y carpetas, construye un directorio
+  nuevo y optimizado, lo compara con el original y solo entonces lo aplica</strong>. Ese enfoque se aplica a cuatro
+  sistemas de archivos y se acompaña de herramientas de diagnóstico del hardware.</p>
+<ul>
+  <li><strong>Seguridad ante todo:</strong> por defecto la app trabaja en solo lectura. Cualquier escritura pasa por una vista previa, comprobaciones previas, una copia de seguridad de metadatos y un registro de deshacer transaccional.</li>
+  <li><strong>Separación de privilegios:</strong> la UI nunca escribe en dispositivos. Solo lo hace un helper privilegiado con una superficie mínima.</li>
+  <li><strong>Honestidad del diagnóstico:</strong> lo que no se puede leer se muestra como «No disponible», nunca como «Sano».</li>
+  <li><strong>Motor independiente de la UI:</strong> crates de Rust puros, probados mediante la CLI y fixtures.</li>
+  <li><strong>Desarrollo clean-room:</strong> implementación basada solo en especificaciones públicas (ver §14).</li>
+</ul>
+
+<h2>2. Decisiones adoptadas</h2>
+<table>
+  <tr><th style="width:32%">Tema</th><th>Decisión</th></tr>
+  <tr><td>Stack</td><td>Motor en Rust (workspace de crates) + app de escritorio en Tauri 2 con UI en React/TypeScript (Vite). Persistencia en SQLite (<code>rusqlite</code>, empaquetado).</td></tr>
+  <tr><td>Plataformas</td><td>macOS, Windows y Linux. El medio de arranque Linux Live sirve para PC y Mac Intel.</td></tr>
+  <tr><td>Escritura</td><td>Exportar a imagen nueva por defecto. Escritura directa con asistente, helper privilegiado y undo log.</td></tr>
+  <tr><td>Sistemas de archivos</td><td>HFS+/HFSX, APFS, NTFS y ext4, mediante un trait común <code>FileSystem</code> con capacidades declaradas.</td></tr>
+  <tr><td>APFS</td><td>Niveles A (verificación) y B (recuperación) en producción. Nivel C (reconstrucción) experimental y al principio solo sobre imágenes. Nivel D (cifrado) solo en discos externos y Macs Intel sin T2.</td></tr>
+  <tr><td>Cifrado</td><td>Capa genérica <code>crypto-layers</code>: BitLocker, LUKS1/2, Core Storage, APFS, fscrypt (sin desbloqueo) y VeraCrypt (después del MVP).</td></tr>
+  <tr><td>S.M.A.R.T.</td><td>Nativo en Linux (<code>SG_IO</code>/NVMe ioctl) y Windows (<code>IOCTL_STORAGE_*</code>). En macOS, <code>smartctl</code> invocado como binario externo (sin enlazarlo).</td></tr>
+  <tr><td>Arranque externo</td><td>USB Linux Live con la app en modo kiosk. En Apple Silicon, asistente para instalar macOS en un disco externo con DirForge.</td></tr>
+</table>
+
+<h2>3. Funcionalidades</h2>
+<h3>3.1 Núcleo (HFS+ y común a todos los formatos)</h3>
+<table>
+  <tr><th style="width:24%">Funcionalidad</th><th>Detalle</th></tr>
+  <tr><td>Selección de origen</td><td>Imagen raw, UDIF/DMG (descompresión zlib), dispositivo en solo lectura. Detección de particiones GPT/APM/MBR y contenedores APFS.</td></tr>
+  <tr><td>Escaneo</td><td>Cabecera del volumen, B-trees de catálogo y extents, nodos, claves, orden, enlaces y bitmap de asignación.</td></tr>
+  <tr><td>Recuperación de registros</td><td>Barrido de bloques sueltos en busca de registros huérfanos y reconstrucción de la jerarquía mediante los thread records.</td></tr>
+  <tr><td>Reconstrucción</td><td>Catálogo nuevo compacto y ordenado, valences corregidas y huérfanos en <code>Recovered Items</code>.</td></tr>
+  <tr><td>Vista previa / comparación</td><td>Árbol original y reconstruido lado a lado. Montaje de la vista previa en solo lectura (FUSE) en una fase posterior.</td></tr>
+  <tr><td>Comprobación de archivos</td><td>Extents dentro del volumen, sin solapes y coherentes con el bitmap.</td></tr>
+  <tr><td>Informe e historial</td><td>Hallazgos por severidad y estadísticas antes/después. Exportación a HTML/JSON. Historial en SQLite.</td></tr>
+  <tr><td>Exportación</td><td>Imagen reparada nueva, verificada con un segundo escaneo, más una copia de seguridad de metadatos.</td></tr>
+</table>
+
+<h3>3.2 Escritura directa en el disco</h3>
+<ul>
+  <li><strong>Requisitos previos:</strong> volumen desmontado y bloqueado en exclusiva, no es el disco de arranque, estado S.M.A.R.T. no crítico, journal limpio, vista previa revisada y espacio para el undo log en <em>otro</em> disco.</li>
+  <li><strong>Transacción:</strong> guardar los bloques originales (offset, datos y hash) en el undo log → escribir → <code>fsync</code> → releer y verificar el hash → commit. Al arrancar, la app detecta transacciones interrumpidas y ofrece revertir.</li>
+  <li><strong>Orden seguro:</strong> los nodos nuevos se escriben en espacio libre y el puntero raíz (cabecera, superbloque o checkpoint) al final, de forma atómica.</li>
+  <li><strong>Helper privilegiado:</strong> macOS: <code>SMAppService</code> + DiskArbitration. Linux: polkit/<code>pkexec</code> + <code>O_EXCL</code>. Windows: servicio con elevación + <code>FSCTL_LOCK_VOLUME</code>/<code>FSCTL_DISMOUNT_VOLUME</code>.</li>
+  <li><strong>Volúmenes cifrados:</strong> cada sector se vuelve a cifrar con la misma clave del volumen y el mismo tweak XTS. Las cabeceras de cifrado no se tocan nunca.</li>
+</ul>
+
+<h3>3.3 Monitorización S.M.A.R.T.</h3>
+<ul>
+  <li><strong>SATA:</strong> atributos, umbrales y valores worst. <strong>NVMe:</strong> Health log (critical warning, percentage used, media errors, temperatura).</li>
+  <li><strong>Agente en segundo plano</strong> (<code>dirforge-agent</code>): sondeo periódico, histórico, tendencias, reglas configurables y notificaciones del sistema.</li>
+  <li><strong>Integración con la reparación:</strong> si el disco está fallando, se bloquea la escritura directa y se recomienda clonar o recuperar primero.</li>
+  <li><strong>Limitación:</strong> muchas cajas USB no transmiten S.M.A.R.T. En ese caso se muestra «No disponible».</li>
+</ul>
+
+<h3>3.4 Arranque desde disco externo</h3>
+<table>
+  <tr><th style="width:26%">Destino</th><th>Solución</th></tr>
+  <tr><td>PC (UEFI/BIOS) y Mac Intel</td><td><strong>DirForge Live</strong>: Linux mínimo (Debian, construido con mkosi/live-build) que arranca la app en modo kiosk. Los Mac con T2 requieren permitir el arranque externo.</td></tr>
+  <tr><td>Apple Silicon</td><td>No arranca un Linux genérico, y el modo «Compartir disco» trabaja por SMB, a nivel de archivos. Se ofrece un asistente para instalar macOS en un disco externo y copiar DirForge en él.</td></tr>
+</table>
+
+<h3>3.5 NTFS</h3>
+<ul>
+  <li><strong>Parser:</strong> boot sector, <code>$MFT</code> con fixups, atributos residentes y no residentes, runlists, índices <code>$I30</code>, <code>$Bitmap</code> y <code>$LogFile</code> (solo lectura).</li>
+  <li><strong>Verificación:</strong> registros corruptos, índices desordenados o huérfanos, link count, runs solapados y bitmap.</li>
+  <li><strong>Reparación:</strong> reconstrucción de <code>$I30</code>, huérfanos en <code>found.000</code>, corrección del bitmap y marca <em>dirty</em> para que Windows ejecute <code>chkdsk</code>. No se escribe si <code>$LogFile</code> tiene transacciones pendientes.</li>
+</ul>
+
+<h3>3.6 ext4</h3>
+<ul>
+  <li><strong>Parser:</strong> superbloque, grupos, inodos con extents, directorios lineales y htree, journal jbd2 y checksums <code>metadata_csum</code> (crc32c).</li>
+  <li><strong>Verificación:</strong> las comprobaciones de las fases 1 a 5 de un fsck clásico (inodos y bloques, directorios, conectividad, recuento de enlaces, bitmaps).</li>
+  <li><strong>Reconstrucción:</strong> índices htree, huérfanos en <code>lost+found</code>, recuentos y bitmaps. Reproducción del journal pendiente, siempre sobre una copia.</li>
+</ul>
+
+<h2>4. APFS: alcance por niveles</h2>
+<table>
+  <tr><th style="width:22%">Nivel</th><th>Contenido</th><th style="width:22%">Estado</th></tr>
+  <tr><td>A. Lectura y verificación</td><td>Container, object map, B-trees, checkpoints y checksums Fletcher-64.</td><td class="ok">Producción</td></tr>
+  <tr><td>B. Recuperación</td><td>Volver a un checkpoint o snapshot sano, barrer nodos huérfanos y copiar los archivos a otro disco.</td><td class="ok">Producción</td></tr>
+  <tr><td>C. Reconstrucción</td><td>Nuevo B-tree de archivos y object map, escritos como un checkpoint nuevo aprovechando el copy-on-write.</td><td class="warn">Experimental, primero solo sobre imágenes</td></tr>
+  <tr><td>D. Cifrado</td><td>Desbloqueo del keybag con contraseña o clave de recuperación, AES-XTS.</td><td class="warn">Discos externos y Mac Intel sin T2</td></tr>
+</table>
+<div class="note"><strong>Límite que no depende de nosotros:</strong> en los Macs con T2 o Apple Silicon, el cifrado del disco interno depende del Secure Enclave y no se puede descifrar fuera de ese equipo.</div>
+
+<h2>5. Capa de cifrado</h2>
+<table>
+  <tr><th style="width:13%">Formato</th><th style="width:20%">Esquema</th><th style="width:27%">Desbloqueo</th><th>Límites / viabilidad</th></tr>
+  <tr><td>HFS+</td><td>FileVault 2 sobre Core Storage</td><td>Contraseña o clave de recuperación</td><td>Formato legado y poco documentado. Viabilidad media, prioridad baja.</td></tr>
+  <tr><td>APFS</td><td>FileVault / volumen cifrado</td><td>Contraseña o clave de recuperación</td><td>Discos externos y Mac Intel sin T2.</td></tr>
+  <tr><td>NTFS</td><td>BitLocker / To Go</td><td>Contraseña, clave de recuperación de 48 dígitos o archivo <code>.BEK</code></td><td>Si solo está protegido por TPM, hace falta la clave de recuperación. Viabilidad alta.</td></tr>
+  <tr><td>ext4</td><td>LUKS1 / LUKS2</td><td>Frase de paso o archivo de clave</td><td>Viabilidad alta. Las copias redundantes de la cabecera permiten repararla.</td></tr>
+  <tr><td>ext4</td><td>fscrypt</td><td>No hace falta para la estructura</td><td>Los metadatos están en claro: se puede verificar y reconstruir sin la clave.</td></tr>
+  <tr><td>Cualquiera</td><td>Hardware (SED/Opal, cajas USB, T2)</td><td>Lo gestiona el propio disco</td><td>Se detecta y se informa. Si el disco está desbloqueado, la app funciona con normalidad.</td></tr>
+  <tr><td>Opcional</td><td>VeraCrypt</td><td>Contraseña, archivos de clave y PIM</td><td>Después del MVP.</td></tr>
+</table>
+<ul>
+  <li><strong>Diseño:</strong> <code>DecryptingDevice</code> implementa <code>BlockDevice</code>, así que los parsers de sistemas de archivos no saben si el volumen está cifrado. APFS cifra objeto a objeto y lo gestiona dentro de <code>fs-apfs</code>.</li>
+  <li><strong>Exportación:</strong> cifrada por defecto, conservando la cabecera. Exportar en claro solo con aceptación explícita.</li>
+  <li><strong>Reparación de cabeceras:</strong> desde las copias secundarias (2 en LUKS2, 3 en BitLocker) o importando una copia de seguridad.</li>
+  <li><strong>Claves:</strong> solo en memoria (<code>mlock</code> + <code>zeroize</code>). Nunca se guardan en disco, en la base de datos ni en los registros. El helper recibe la clave del volumen ya derivada, nunca la contraseña.</li>
+</ul>
+
+<h2 class="page-break">6. Arquitectura del sistema</h2>
+<pre>
+┌─────────────── UI (Tauri + React) ───────────────┐      ┌──────── dirforge-agent ────────┐
+│ vistas · estado (Zustand) · eventos de progreso   │      │ sondeo S.M.A.R.T. · alertas    │
+└──────────────▲────────────────────────────────────┘      └───────────▲────────────────────┘
+               │ IPC (comandos + eventos)                               │ SQLite
+┌──────────────┴──────────── app core (Rust, src-tauri) ──────────────────────────────────┐
+│ orquestador de trabajos · repositorio SQLite · registro de FS (trait FileSystem)         │
+└──────▲──────────────▲──────────────▲───────────────▲─────────────────▲───────────────────┘
+       │              │              │               │                 │ IPC autenticado
+   ┌───┴──────┐ ┌─────┴───────┐ ┌────┴─────┐  ┌──────┴─────┐  ┌────────┴─────────────────┐
+   │ io       │ │ fs-hfsplus  │ │ analyzer │  │ rebuilder  │  │ dirforge-helper (root)   │
+   │ partition│ │ fs-apfs     │ │          │  │            │  │ bloqueo/desmontaje       │
+   │ crypto-  │ │ fs-ntfs     │ │          │  │            │  │ txwriter · undo · verify │
+   │  layers  │ │ fs-ext4     │ └──────────┘  └────────────┘  └──────────────────────────┘
+   │ smart    │ └─────────────┘
+   └──────────┘
+</pre>
+<h4>Contrato común</h4>
+<pre>
+trait FileSystem {
+  fn probe(dev: &amp;dyn BlockDevice) -&gt; Option&lt;FsInfo&gt;;
+  fn capabilities(&amp;self) -&gt; Capabilities;  // scan/recover/rebuild/write
+  fn scan(&amp;self, ctx: &amp;mut ScanContext) -&gt; Result&lt;ScanResult&gt;;
+  fn recover(&amp;self, ctx: &amp;mut ScanContext, dest: &amp;Path) -&gt; Result&lt;RecoverResult&gt;;
+  fn plan_rebuild(&amp;self, ctx: &amp;mut ScanContext) -&gt; Result&lt;RebuildPlan&gt;;  // sin escribir
+}
+trait EncryptionScheme {
+  fn probe(dev) -&gt; Option&lt;EncryptionInfo&gt;;  fn protectors(&amp;self) -&gt; Vec&lt;ProtectorKind&gt;;
+  fn unlock(&amp;self, secret: Secret) -&gt; Result&lt;DecryptingDevice&gt;;
+}
+</pre>
+
+<h2>7. Estructura de carpetas</h2>
+<pre>
+dirforge/
+├── Cargo.toml                 # workspace
+├── crates/
+│   ├── io/                    # BlockDevice, RawImage, UdifImage, Device (RO), DeviceWriter
+│   ├── partition/             # GPT, APM, MBR, contenedores APFS
+│   ├── crypto-layers/         # bitlocker/, luks/, corestorage/, xts, keys (zeroize)
+│   ├── smart/                 # ata, nvme, backends/{linux,windows,macos,smartctl}
+│   ├── fs-core/               # FileSystem, Finding, Snapshot, BlockWrite, RebuildPlan
+│   ├── fs-hfsplus/            # volume_header, btree/, catalog, extents, bitmap, unicode
+│   ├── fs-apfs/               # container, omap, btree, fs_tree, checkpoints, keybag, fletcher64
+│   ├── fs-ntfs/               # mft, attributes, runlist, index_i30, bitmap, logfile
+│   ├── fs-ext4/               # superblock, groups, inode, extents, htree, jbd2, crc32c
+│   ├── analyzer/              # comprobaciones comunes, scavenger
+│   ├── rebuilder/             # tree_builder, node_packer, diff, image_writer
+│   ├── txwriter/              # undo log, orden de escritura, verificación, rollback
+│   └── cli/                   # dirforge-cli scan|recover|rebuild|diff|report|smart
+├── helper/                    # dirforge-helper (privilegiado)
+├── agent/                     # dirforge-agent (S.M.A.R.T.)
+├── app/
+│   ├── package.json           # workspace npm + Tauri CLI
+│   ├── src-tauri/             # commands/, jobs.rs, db/, migrations/
+│   └── ui/                    # React + TS: views/, components/, store/, api/, mocks/, styles/
+├── live/                      # receta del USB Linux Live + kiosk
+├── fixtures/{hfsplus,apfs,ntfs,ext4,crypto}/
+├── tools/corruptor/           # inyección de daños controlados
+└── docs/
+</pre>
+
+<h2>8. Modelo de datos (SQLite)</h2>
+<pre>
+disks ─1:N─ sources ─1:N─ volumes ─1:N─ sessions ─1:N─ findings
+  │                          │             ├─1:N─ reports
+  │                          │             └─1:N─ rebuilds ─1:N─ diff_entries
+  │                          └─1:N─ encryption_layers        └─1:1─ write_transactions ─1:N─ undo_blocks
+  ├─1:N─ smart_snapshots ─1:N─ smart_attributes
+  └─1:N─ alerts            alert_rules · boot_media · settings  (independientes)
+</pre>
+<table>
+  <tr><th style="width:20%">Tabla</th><th>Campos</th></tr>
+  <tr><td>disks</td><td>id, serial, model, firmware, bus (sata|nvme|usb|other), capacity_bytes, is_boot_disk, smart_supported, first_seen, last_seen</td></tr>
+  <tr><td>sources</td><td>id, disk_id FK nullable, kind (raw_image|udif|device), path, size_bytes, sha256, label, added_at</td></tr>
+  <tr><td>volumes</td><td>id, source_id FK, partition_index, offset_bytes, fs_type (hfsplus|hfsx|apfs|ntfs|ext4), name, block_size, total_blocks, free_blocks, file_count, folder_count, case_sensitive, journaled, journal_state (clean|pending|none), container_uuid, volume_uuid, role, encrypted, encryption_kind (none|software|hardware), is_mounted, created_at_fs, modified_at_fs</td></tr>
+  <tr><td>encryption_layers</td><td>id, volume_id FK, scheme (bitlocker|luks1|luks2|corestorage|apfs|fscrypt|veracrypt|hardware), cipher, header_ok, backup_headers_ok, protectors_json (solo tipos), detected_at</td></tr>
+  <tr><td>sessions</td><td>id, volume_id FK, mode (image|direct), status (pending|scanning|scanned|rebuilding|rebuilt|exported|failed|cancelled), unlocked_with (password|recovery|keyfile|none), capabilities_json, started_at, finished_at, catalog_nodes_total, catalog_nodes_damaged, fragmentation_pct, snapshot_path, app_version, error</td></tr>
+  <tr><td>findings</td><td>id, session_id FK, code (HFS_*, APFS_*, NTFS_*, EXT4_*, CRYPT_*), severity (critical|minor|cosmetic), object_type, cnid, node_number, path, message, details_json, fixed_in_rebuild</td></tr>
+  <tr><td>rebuilds</td><td>id, session_id FK, status, target (new_image|in_place), experimental, started_at, finished_at, nodes_before, nodes_after, recovered_count, lost_count, output_path, output_sha256, verified, backup_metadata_path</td></tr>
+  <tr><td>diff_entries</td><td>id, rebuild_id FK, cnid, change (recovered|moved_to_recovered|renamed|valence_fixed|dropped|unchanged_flagged), old_path, new_path, item_type, size_bytes</td></tr>
+  <tr><td>write_transactions</td><td>id, rebuild_id FK, device_path, device_serial, status (prepared|writing|committed|verified|rolled_back|interrupted), undo_log_path, blocks_total, blocks_written, started_at, finished_at, helper_version</td></tr>
+  <tr><td>undo_blocks</td><td>id, tx_id FK, seq, offset_bytes, length, original_sha256, new_sha256, written, verified</td></tr>
+  <tr><td>smart_snapshots</td><td>id, disk_id FK, taken_at, overall (passed|warning|failing|unknown), temperature_c, power_on_hours, percentage_used, raw_json</td></tr>
+  <tr><td>smart_attributes</td><td>id, snapshot_id FK, attr_id, name, value, worst, threshold, raw_value, flags</td></tr>
+  <tr><td>alerts</td><td>id, disk_id FK, rule, severity, message, created_at, acknowledged_at</td></tr>
+  <tr><td>alert_rules</td><td>id, rule, enabled, threshold_json, poll_interval_min</td></tr>
+  <tr><td>reports</td><td>id, session_id FK, format (html|json), path, generated_at</td></tr>
+  <tr><td>boot_media</td><td>id, device_serial, image_version, image_sha256, arch (x86_64|arm64), kind (linux_live|macos_external), created_at, verified</td></tr>
+  <tr><td>settings</td><td>key, value_json</td></tr>
+</table>
+<p><strong>Índices:</strong> findings(session_id, severity), findings(cnid), diff_entries(rebuild_id, change), sessions(volume_id, started_at),
+  smart_snapshots(disk_id, taken_at), alerts(disk_id, acknowledged_at), undo_blocks(tx_id, seq).
+  El árbol completo se guarda en <code>snapshot_path</code> (MessagePack + zstd) y se pide por carpeta. <strong>Nunca se guardan claves ni secretos.</strong></p>
+
+<h2>9. Vistas y componentes</h2>
+<table>
+  <tr><th style="width:5%">#</th><th style="width:28%">Vista</th><th>Propósito</th></tr>
+  <tr><td>1</td><td>Inicio / Selección de origen</td><td>Discos físicos e imágenes, badges de sistema de archivos, cifrado y salud.</td></tr>
+  <tr><td>2</td><td>Detalle del volumen</td><td>Datos de la cabecera, capacidades (<code>FsCapabilityChips</code>) y desbloqueo.</td></tr>
+  <tr><td>3</td><td>Progreso</td><td>Fases, barra de progreso, registro en vivo y cancelación.</td></tr>
+  <tr><td>4</td><td>Resultados del escaneo</td><td>Resumen por severidad y tabla filtrable de hallazgos.</td></tr>
+  <tr><td>5</td><td>Comparación</td><td>Árbol original frente al reconstruido, con filtro «solo cambios».</td></tr>
+  <tr><td>6</td><td>Exportar / Aplicar</td><td>Destino, resumen, confirmación y verificación.</td></tr>
+  <tr><td>7</td><td>Historial</td><td>Sesiones e informes anteriores.</td></tr>
+  <tr><td>8</td><td>Ajustes</td><td>Carpetas, idioma, registros y tema.</td></tr>
+  <tr><td>9</td><td>Salud de los discos</td><td>Tarjetas por disco y alertas activas.</td></tr>
+  <tr><td>10</td><td>Detalle S.M.A.R.T.</td><td>Atributos y tendencias.</td></tr>
+  <tr><td>11</td><td>Alertas y reglas</td><td>Historial, confirmación y umbrales.</td></tr>
+  <tr><td>12</td><td>Asistente de escritura directa</td><td>Comprobaciones previas → copia de seguridad → confirmación tecleando el nombre → progreso → verificación.</td></tr>
+  <tr><td>13</td><td>Recuperar transacción</td><td>Revertir o reverificar una transacción interrumpida.</td></tr>
+  <tr><td>14</td><td>Crear medio de arranque</td><td>USB → tipo → grabación verificada → instrucciones.</td></tr>
+  <tr><td>15</td><td>Recuperación de archivos</td><td>Selección de lo recuperable y copia a un destino. Selector de checkpoint en APFS.</td></tr>
+  <tr><td>16</td><td>Reparar cabecera de cifrado</td><td>Estado de las copias, restauración o importación.</td></tr>
+</table>
+<p><strong>Componentes:</strong> SourceCard, VolumeHeaderPanel, PhaseStepper, ProgressLog, FindingsTable (virtualizada), SeverityBadge, DirectoryTree,
+  DiffTreeView, ChangeIcon, StatsComparison, HexNodeInspector, ConfirmDialog, ReportViewer, HealthBadge, SmartAttributeTable, TrendChart,
+  AlertBanner, PreflightChecklist, TypeToConfirmDialog, TxProgress, UndoRecoveryPrompt, FsCapabilityChips, BootMediaWizard,
+  ApfsCheckpointPicker, EncryptionUnlockDialog (genérico, con validación de la clave de recuperación de BitLocker) y EncryptionBadge.</p>
+
+<h2>10. Sistema de diseño</h2>
+<p>Estética de herramienta profesional moderna: superficies limpias, mucho espacio en blanco, un color de marca contenido y
+  colores semánticos reservados al estado del disco. Tema claro y oscuro con variables CSS. Identidad visual propia, sin
+  parecido con productos existentes.</p>
+<div class="swatches">
+  <div class="sw"><i style="background:#3651d4"></i><span>Marca · índigo</span></div>
+  <div class="sw"><i style="background:#e0702b"></i><span>Acento · ascua</span></div>
+  <div class="sw"><i style="background:#1f9d6b"></i><span>Sano</span></div>
+  <div class="sw"><i style="background:#c98a0c"></i><span>Aviso / menor</span></div>
+  <div class="sw"><i style="background:#d23c4b"></i><span>Crítico</span></div>
+  <div class="sw"><i style="background:#64708a"></i><span>Cosmético / neutro</span></div>
+  <div class="sw"><i style="background:#f6f7fb"></i><span>Fondo claro</span></div>
+  <div class="sw"><i style="background:#0f1420"></i><span>Fondo oscuro</span></div>
+</div>
+<ul>
+  <li><strong>Tipografía:</strong> Inter Variable para la interfaz y JetBrains Mono para offsets, hashes y hex. Ambas autoalojadas (funcionan sin conexión en el USB Live).</li>
+  <li><strong>Tokens:</strong> escala de espaciado de 4 px, radios 6/10/14 px, sombras sutiles en dos niveles y movimiento de 120–240 ms respetando <code>prefers-reduced-motion</code>.</li>
+  <li><strong>Accesibilidad:</strong> contraste AA, foco visible y estados que nunca dependen solo del color (siempre van con icono y texto).</li>
+</ul>
+
+<h2>11. Estrategia de pruebas</h2>
+<ul>
+  <li><strong>Fixtures:</strong> volúmenes generados con <code>mkfs.hfsplus</code>, <code>mkapfs</code> (apfsprogs), <code>mkntfs</code>, <code>mkfs.ext4</code> y <code>cryptsetup</code>. BitLocker en un runner Windows.</li>
+  <li><strong>Corruptor determinista:</strong> claves desordenadas, enlaces rotos, valences, extents solapados, nodos borrados y cabeceras de cifrado dañadas.</li>
+  <li><strong>Validación cruzada en CI:</strong> <code>fsck.hfsplus</code>, <code>apfsck</code>/<code>fsck_apfs</code>, <code>ntfsfix -n</code>/<code>chkdsk</code> y <code>e2fsck -fn</code> sobre nuestras salidas.</li>
+  <li><strong>Fuzzing</strong> de todos los parsers (<code>cargo-fuzz</code>) y pruebas de corte de corriente simulado para <code>txwriter</code>.</li>
+  <li><strong>UI:</strong> datos simulados (mock data) y pruebas de componentes. Playwright para los flujos críticos.</li>
+</ul>
+
+<h2>12. Fases de desarrollo</h2>
+<table>
+  <tr><th style="width:9%">Fase</th><th>Alcance</th></tr>
+  <tr><td>F0</td><td>Inicialización: workspace, estructura, sistema de diseño, mock data y shell de la UI.</td></tr>
+  <tr><td>F1</td><td>io, partition, fs-core y fs-hfsplus (lectura), CLI y fixtures.</td></tr>
+  <tr><td>F2</td><td>analyzer y rebuilder para HFS+ → exportación a imagen nueva.</td></tr>
+  <tr><td>F3</td><td>App Tauri y SQLite: vistas 1 a 8.</td></tr>
+  <tr><td>F4</td><td>smart y agent: vistas 9 a 11.</td></tr>
+  <tr><td>F5</td><td>txwriter y helper: escritura directa (vistas 12 y 13), primero en HFS+.</td></tr>
+  <tr><td>F6b</td><td>crypto-layers: LUKS → BitLocker → Core Storage. fscrypt solo con detección. Vista 16.</td></tr>
+  <tr><td>F6</td><td>fs-ext4: verificación, reconstrucción y escritura directa.</td></tr>
+  <tr><td>F7</td><td>fs-ntfs: verificación, recuperación y reparación de índices.</td></tr>
+  <tr><td>F8</td><td>fs-apfs, niveles A y B (vista 15).</td></tr>
+  <tr><td>F9</td><td>Medio de arranque: Linux Live y asistente para Apple Silicon (vista 14).</td></tr>
+  <tr><td>F10</td><td>APFS nivel C (experimental) y nivel D (externos). VeraCrypt.</td></tr>
+</table>
+
+<h2>13. Riesgos y mitigaciones</h2>
+<table>
+  <tr><th style="width:34%">Riesgo</th><th>Mitigación</th></tr>
+  <tr><td>Pérdida de datos por escritura directa</td><td>Undo log, orden atómico, verificación, fixtures con daños, fuzzing y bloqueo cuando S.M.A.R.T. es crítico.</td></tr>
+  <tr><td>APFS y NTFS sin especificación completa de escritura</td><td>Funciones experimentales detrás de un flag, solo sobre imágenes al principio y validación con las herramientas nativas.</td></tr>
+  <tr><td>Fuga de claves</td><td>Solo en memoria, mlock + zeroize, nunca en logs ni en la base de datos, y helper con IPC autenticado.</td></tr>
+  <tr><td>Firma y notarización</td><td>Developer ID y notarización en macOS, firma de código en Windows y presupuesto previsto.</td></tr>
+  <tr><td>Compatibilidad de hardware (USB y S.M.A.R.T.)</td><td>Mostrar «No disponible» y mantener una matriz de cajas probadas.</td></tr>
+</table>
+
+<h2>14. Propiedad intelectual (clean-room)</h2>
+<div class="info">DirForge es un producto independiente. Comparte una <em>idea funcional</em> (reconstruir directorios en lugar de parchearlos),
+  y las ideas y los métodos no están protegidos por derechos de autor. Su expresión (código, interfaz, textos, iconos, marca) es original.</div>
+<ul>
+  <li><strong>Sin ingeniería inversa:</strong> el instalador aportado no se ha desensamblado ni extraído. Solo se identificó su formato contenedor (UDIF / HFS+). No se reutiliza ningún binario, recurso, texto ni icono suyo.</li>
+  <li><strong>Fuentes permitidas:</strong> especificaciones públicas (Apple TN1150 para HFS+, Apple File System Reference, documentación del kernel Linux para ext4 y jbd2, especificación de LUKS2, documentación pública de NTFS y BitLocker) y estándares (ATA/ACS, NVMe, UEFI/GPT).</li>
+  <li><strong>Herramientas GPL</strong> (e2fsprogs, dislocker, smartmontools…): se usan solo como oráculos de prueba o como binarios externos invocados. No se copia ni se traduce su código.</li>
+  <li><strong>Marca y UI propias:</strong> nombre, logotipo, paleta, terminología y flujo de pantallas diseñados desde cero. No se menciona la marca original dentro del producto.</li>
+  <li><strong>Trazabilidad:</strong> <code>docs/CLEAN_ROOM.md</code> registra las fuentes consultadas en cada módulo. Se recomienda una revisión legal antes de publicar.</li>
+</ul>
+
+</body>
+</html>

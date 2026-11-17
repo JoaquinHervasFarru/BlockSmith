@@ -1,0 +1,15 @@
+[package]
+name = "dirforge-smart"
+description = "Lectura de S.M.A.R.T. (ATA) y Health log (NVMe) con backends por plataforma."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"

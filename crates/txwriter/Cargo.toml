@@ -1,0 +1,17 @@
+[package]
+name = "dirforge-txwriter"
+description = "Escritura transaccional con undo log, verificación y rollback."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
+serde = { version = "1.0.229", features = ["derive"] }
+sha2 = "0.10.9"
+thiserror = "2.0.21"

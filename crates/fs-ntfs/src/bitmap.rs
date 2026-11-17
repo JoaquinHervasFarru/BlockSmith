@@ -1,0 +1,1 @@
+//! `$Bitmap` de clústeres.

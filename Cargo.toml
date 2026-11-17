@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/io",
+    "crates/partition",
+    "crates/crypto-layers",
+    "crates/smart",
+    "crates/fs-core",
+    "crates/fs-hfsplus",
+    "crates/fs-apfs",
+    "crates/fs-ntfs",
+    "crates/fs-ext4",
+    "crates/analyzer",
+    "crates/rebuilder",
+    "crates/txwriter",
+    "crates/cli",
+    "helper",
+    "agent",
+    "app/src-tauri",
+    "tools/corruptor",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+authors = ["DirForge contributors"]
+publish = false
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

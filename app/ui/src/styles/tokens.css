@@ -1,0 +1,205 @@
+/*
+ * DirForge · tokens de diseño
+ * Única fuente de verdad para color, tipografía, espaciado, radios, sombras y movimiento.
+ * Tema claro por defecto; el oscuro se activa por preferencia del sistema o con
+ * <html data-theme="dark">. data-theme="light" fuerza el claro.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ── Marca: índigo ─────────────────────────────── */
+  --brand-50: #eef1ff;
+  --brand-100: #dfe5ff;
+  --brand-200: #c2ccff;
+  --brand-300: #9aa9fb;
+  --brand-400: #6f82f2;
+  --brand-500: #4c63e6;
+  --brand-600: #3651d4;
+  --brand-700: #2b41b0;
+  --brand-800: #25388d;
+  --brand-900: #1f2f6e;
+
+  /* ── Acento: ascua (uso puntual: acciones de escritura, foco de atención) ── */
+  --ember-500: #e0702b;
+  --ember-600: #c75c1a;
+  --ember-soft: #fdeee3;
+
+  /* ── Superficies y texto ───────────────────────── */
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f3f9;
+  --surface-3: #e8ebf3;
+  --overlay: rgb(15 20 32 / 0.45);
+  --border: #e3e6ef;
+  --border-strong: #cdd2e0;
+  --text: #141a2b;
+  --text-2: #4c556b;
+  --text-3: #7a8297;
+  --text-on-brand: #ffffff;
+
+  /* ── Semánticos (estado del disco / severidad) ── */
+  --ok: #1a8f61;
+  --ok-soft: #e2f5ec;
+  --warn: #a86e05;
+  --warn-soft: #fcf1d8;
+  --crit: #cf3646;
+  --crit-soft: #fde7ea;
+  --neutral: #5f6b85;
+  --neutral-soft: #eceff5;
+  --info: var(--brand-600);
+  --info-soft: var(--brand-50);
+
+  /* ── Roles derivados ───────────────────────────── */
+  --accent: var(--brand-600);
+  --accent-hover: var(--brand-700);
+  --accent-soft: var(--brand-50);
+  --focus-ring: 0 0 0 3px rgb(76 99 230 / 0.35);
+
+  /* ── Tipografía ────────────────────────────────── */
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem; /* 11 */
+  --text-xs: 0.75rem;    /* 12 */
+  --text-sm: 0.8125rem;  /* 13 */
+  --text-base: 0.875rem; /* 14 */
+  --text-md: 0.9375rem;  /* 15 */
+  --text-lg: 1.0625rem;  /* 17 */
+  --text-xl: 1.25rem;    /* 20 */
+  --text-2xl: 1.5rem;    /* 24 */
+  --text-3xl: 1.875rem;  /* 30 */
+
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --tracking-tight: -0.015em;
+  --tracking-wide: 0.06em;
+
+  /* ── Espaciado (escala de 4 px) ────────────────── */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ── Radios ────────────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* ── Sombras (dos niveles + overlay) ───────────── */
+  --shadow-1: 0 1px 2px rgb(20 26 43 / 0.06), 0 1px 1px rgb(20 26 43 / 0.04);
+  --shadow-2: 0 4px 12px rgb(20 26 43 / 0.08), 0 1px 3px rgb(20 26 43 / 0.06);
+  --shadow-overlay: 0 16px 48px rgb(20 26 43 / 0.18);
+
+  /* ── Movimiento ────────────────────────────────── */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 240ms;
+
+  /* ── Layout ────────────────────────────────────── */
+  --sidebar-w: 248px;
+  --topbar-h: 56px;
+  --content-max: 1240px;
+  --z-sticky: 10;
+  --z-overlay: 100;
+  --z-toast: 200;
+}
+
+/* ── Tema oscuro ─────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d111b;
+    --surface: #141927;
+    --surface-2: #1a2031;
+    --surface-3: #222a3e;
+    --overlay: rgb(0 0 0 / 0.6);
+    --border: #252c40;
+    --border-strong: #343d56;
+    --text: #e8ebf3;
+    --text-2: #a7afc3;
+    --text-3: #79829a;
+
+    --ok: #3ccf91;
+    --ok-soft: rgb(60 207 145 / 0.13);
+    --warn: #f0b443;
+    --warn-soft: rgb(240 180 67 / 0.13);
+    --crit: #ff6b78;
+    --crit-soft: rgb(255 107 120 / 0.13);
+    --neutral: #9aa4bd;
+    --neutral-soft: rgb(154 164 189 / 0.12);
+    --ember-soft: rgb(224 112 43 / 0.15);
+
+    --accent: var(--brand-400);
+    --accent-hover: var(--brand-300);
+    --accent-soft: rgb(111 130 242 / 0.14);
+    --info: var(--brand-300);
+    --info-soft: rgb(111 130 242 / 0.14);
+    --focus-ring: 0 0 0 3px rgb(111 130 242 / 0.45);
+
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-2: 0 6px 16px rgb(0 0 0 / 0.35);
+    --shadow-overlay: 0 20px 56px rgb(0 0 0 / 0.55);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d111b;
+  --surface: #141927;
+  --surface-2: #1a2031;
+  --surface-3: #222a3e;
+  --overlay: rgb(0 0 0 / 0.6);
+  --border: #252c40;
+  --border-strong: #343d56;
+  --text: #e8ebf3;
+  --text-2: #a7afc3;
+  --text-3: #79829a;
+
+  --ok: #3ccf91;
+  --ok-soft: rgb(60 207 145 / 0.13);
+  --warn: #f0b443;
+  --warn-soft: rgb(240 180 67 / 0.13);
+  --crit: #ff6b78;
+  --crit-soft: rgb(255 107 120 / 0.13);
+  --neutral: #9aa4bd;
+  --neutral-soft: rgb(154 164 189 / 0.12);
+  --ember-soft: rgb(224 112 43 / 0.15);
+
+  --accent: var(--brand-400);
+  --accent-hover: var(--brand-300);
+  --accent-soft: rgb(111 130 242 / 0.14);
+  --info: var(--brand-300);
+  --info-soft: rgb(111 130 242 / 0.14);
+  --focus-ring: 0 0 0 3px rgb(111 130 242 / 0.45);
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 6px 16px rgb(0 0 0 / 0.35);
+  --shadow-overlay: 0 20px 56px rgb(0 0 0 / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+    --dur-slow: 0ms;
+  }
+}

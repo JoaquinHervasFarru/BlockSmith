@@ -1,0 +1,65 @@
+# DirForge
+
+Verificación, recuperación y reconstrucción de directorios de disco para HFS+, APFS, NTFS y ext4,
+con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.
+
+Plan técnico aprobado: [`docs/DirForge-Plan-Tecnico-v3.pdf`](docs/DirForge-Plan-Tecnico-v3.pdf).
+Estado actual: **F0 completada** (estructura, sistema de diseño, mock data y shell de la UI).
+
+## Requisitos
+
+- Rust ≥ 1.80 y Node.js ≥ 20
+- Linux: `libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libssl-dev`
+- macOS: Xcode Command Line Tools · Windows: WebView2 + MSVC Build Tools
+
+## Puesta en marcha
+
+Instalar las dependencias del frontend:
+
+```bash
+cd app && npm install
+```
+
+Abrir la UI en el navegador con datos simulados (http://localhost:1420):
+
+```bash
+cd app && npm run dev
+```
+
+Abrir la app de escritorio (Tauri):
+
+```bash
+cd app && npm run tauri dev
+```
+
+Compilar y probar el motor:
+
+```bash
+cargo build --workspace && cargo test --workspace
+```
+
+Identificar una imagen desde la CLI:
+
+```bash
+cargo run -p dirforge-cli -- probe ruta/a/imagen.dmg
+```
+
+## Estructura
+
+| Ruta | Contenido |
+|---|---|
+| `crates/` | Motor en Rust: io, partition, crypto-layers, smart, fs-core, fs-hfsplus, fs-apfs, fs-ntfs, fs-ext4, analyzer, rebuilder, txwriter, cli |
+| `helper/` | Proceso privilegiado para la escritura directa |
+| `agent/` | Servicio de monitorización S.M.A.R.T. |
+| `app/src-tauri/` | App de escritorio: comandos IPC, trabajos, SQLite (`migrations/`) |
+| `app/ui/` | React + TS: `styles/` (tokens), `mocks/`, `api/`, `components/`, `views/` |
+| `live/` | Receta del USB de arranque |
+| `fixtures/`, `tools/corruptor/` | Imágenes de prueba y generador de daños |
+| `docs/` | Plan, sistema de diseño y registro clean-room |
+
+## Datos simulados
+
+`app/ui/src/mocks/data.ts` cubre 5 discos, 6 orígenes, 7 volúmenes (todos los formatos),
+5 capas de cifrado, sesiones, hallazgos, reconstrucciones, diff, una transacción interrumpida,
+30 días de S.M.A.R.T., alertas, informes y medios de arranque. La UI los usa automáticamente
+fuera de Tauri. Dentro de Tauri se fuerzan con `VITE_USE_MOCKS=true`.

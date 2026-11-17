@@ -1,0 +1,16 @@
+[package]
+name = "dirforge-fs-hfsplus"
+description = "Parser y reconstrucción de HFS+/HFSX (basado en Apple TN1150)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dirforge-fs-core = { version = "0.1.0", path = "../fs-core" }
+dirforge-io = { version = "0.1.0", path = "../io" }
+thiserror = "2.0.21"

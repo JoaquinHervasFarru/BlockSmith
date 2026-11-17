@@ -1,0 +1,15 @@
+[package]
+name = "dirforge-partition"
+description = "Detección de esquemas de partición (GPT, APM, MBR) y contenedores APFS."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+dirforge-io = { version = "0.1.0", path = "../io" }
+thiserror = "2.0.21"

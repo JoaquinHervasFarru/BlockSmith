@@ -1,0 +1,9 @@
+/target
+node_modules/
+app/ui/dist/
+app/src-tauri/gen/
+*.tsbuildinfo
+.DS_Store
+# Las fixtures binarias grandes se generan con tools/corruptor; no se versionan.
+fixtures/**/*.img
+fixtures/**/*.dmg
