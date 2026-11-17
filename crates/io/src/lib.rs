@@ -5,6 +5,7 @@
 //! la ejecuta `dirforge-helper` con privilegios.
 
 mod device;
+pub mod endian;
 mod error;
 mod memory;
 mod raw;
@@ -14,6 +15,7 @@ pub use device::DeviceInfo;
 pub use error::{IoError, IoResult};
 pub use memory::MemoryDevice;
 pub use raw::RawImage;
+pub use udif::UdifImage;
 
 /// Origen de bloques direccionable por offset de byte.
 pub trait BlockDevice: Send + Sync {
@@ -37,6 +39,28 @@ pub trait BlockDevice: Send + Sync {
         let mut v = vec![0u8; len];
         self.read_exact_at(offset, &mut v)?;
         Ok(v)
+    }
+}
+
+impl<T: BlockDevice + ?Sized> BlockDevice for Box<T> {
+    fn len(&self) -> u64 {
+        (**self).len()
+    }
+    fn sector_size(&self) -> u32 {
+        (**self).sector_size()
+    }
+    fn read_exact_at(&self, offset: u64, buf: &mut [u8]) -> IoResult<()> {
+        (**self).read_exact_at(offset, buf)
+    }
+}
+
+/// Abre un archivo de imagen detectando el formato (UDIF o raw).
+pub fn open_image(path: impl AsRef<std::path::Path>) -> IoResult<Box<dyn BlockDevice>> {
+    let raw = RawImage::open(path)?;
+    if udif::has_koly_trailer(&raw)? {
+        Ok(Box::new(UdifImage::open(Box::new(raw))?))
+    } else {
+        Ok(Box::new(raw))
     }
 }
 

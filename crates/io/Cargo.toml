@@ -11,7 +11,9 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+bzip2 = "0.5.2"
 flate2 = "1.1.11"
+plist = "1.7.4"
 serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.10.9"
 thiserror = "2.0.21"
