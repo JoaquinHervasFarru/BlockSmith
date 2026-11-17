@@ -11,5 +11,19 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+anyhow = "1.0.104"
+base64 = "0.23.1"
 blocksmith-fs-core = { version = "0.1.0", path = "../crates/fs-core" }
+blocksmith-fs-hfsplus = { version = "0.1.0", path = "../crates/fs-hfsplus" }
+blocksmith-io = { version = "0.1.0", path = "../crates/io" }
 blocksmith-txwriter = { version = "0.1.0", path = "../crates/txwriter" }
+clap = { version = "4.5.61", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sha2 = "0.10.9"
+
+[target."cfg(unix)".dependencies]
+libc = "0.2.191"
+
+[dev-dependencies]
+tempfile = "3.27.0"

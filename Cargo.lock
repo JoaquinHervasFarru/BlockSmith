@@ -559,8 +559,18 @@ dependencies = [
 name = "blocksmith-helper"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "base64 0.23.1",
  "blocksmith-fs-core",
+ "blocksmith-fs-hfsplus",
+ "blocksmith-io",
  "blocksmith-txwriter",
+ "clap",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
 ]
 
 [[package]]
@@ -626,6 +636,7 @@ dependencies = [
  "blocksmith-fs-core",
  "blocksmith-fs-hfsplus",
  "blocksmith-io",
+ "libc",
  "serde",
  "serde_json",
  "sha2 0.10.9",

@@ -13,8 +13,12 @@ pub struct RawImage {
 impl RawImage {
     pub fn open(path: impl AsRef<Path>) -> IoResult<Self> {
         let path = path.as_ref().to_path_buf();
-        let file = File::open(&path)?;
-        let len = file.metadata()?.len();
+        let mut file = File::open(&path)?;
+        // En dispositivos de bloque, metadata().len() es 0: el tamaño se obtiene buscando el final.
+        let len = match file.metadata()?.len() {
+            0 => std::io::Seek::seek(&mut file, std::io::SeekFrom::End(0))?,
+            n => n,
+        };
         Ok(Self { path, file, len })
     }
 

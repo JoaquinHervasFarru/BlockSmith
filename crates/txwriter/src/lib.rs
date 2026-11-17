@@ -13,10 +13,12 @@
 //! Gracias al orden de fases, un corte antes del commit deja la versión vieja y uno
 //! posterior la nueva; el registro permite además volver exactamente al original.
 
+pub mod device;
 mod target;
 mod tx;
 mod undo;
 
+pub use device::{FileTarget, TargetKind};
 pub use target::{MemTarget, Target};
 pub use tx::{apply, prepare, Control, Observer, PlannedWrite, Transaction};
 pub use undo::{inspect, mark_verified, roll_forward, rollback, TxMeta, TxState, UndoInfo, UndoRecordInfo};
