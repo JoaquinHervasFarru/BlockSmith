@@ -8,7 +8,10 @@ use clap::{Parser, Subcommand};
 use blocksmith_fs_core::{Progress, Severity};
 use blocksmith_fs_hfsplus::{scan_volume, Volume};
 use blocksmith_io::{open_image, BlockDevice, Slice};
+use blocksmith_fs_hfsplus::rebuild::plan_rebuild;
 use blocksmith_partition::{detect, Hint, Scheme};
+use blocksmith_rebuilder::summary::change_label;
+use blocksmith_rebuilder::{export_image, summarize};
 
 #[derive(Parser)]
 #[command(name = "blocksmith-cli", version, about = "Motor de BlockSmith desde la terminal (solo lectura)")]
@@ -34,6 +37,36 @@ enum Cmd {
         #[arg(long)]
         tree: bool,
     },
+    /// Reconstruye el directorio y lo exporta a una imagen NUEVA (el origen no se modifica).
+    Rebuild {
+        path: PathBuf,
+        /// Archivo de salida; no debe existir.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        #[arg(long)]
+        partition: Option<u32>,
+        /// Solo muestra los cambios previstos, sin escribir nada.
+        #[arg(long)]
+        dry_run: bool,
+        /// Muestra todos los cambios (por defecto, los 40 primeros).
+        #[arg(long)]
+        all: bool,
+    },
+}
+
+/// Busca el primer volumen HFS+/HFSX (o el de la partición pedida).
+fn choose_volume(dev: &dyn BlockDevice, partition: Option<u32>) -> anyhow::Result<(u64, u64, String)> {
+    let (_, vols, _) = candidate_volumes(dev)?;
+    for (idx, start, len, label) in vols {
+        if partition.is_some_and(|p| p != idx) {
+            continue;
+        }
+        let slice = Slice::new(dev, start, len)?;
+        if Volume::open(&slice)?.is_some() {
+            return Ok((start, len, label));
+        }
+    }
+    bail!("no se encontró ningún volumen HFS+/HFSX")
 }
 
 struct CliProgress {
@@ -114,19 +147,7 @@ fn main() -> anyhow::Result<()> {
         }
         Cmd::Scan { path, partition, json, tree } => {
             let dev = open_image(&path).with_context(|| format!("no se pudo abrir {}", path.display()))?;
-            let (_, vols, _) = candidate_volumes(dev.as_ref())?;
-            let mut chosen = None;
-            for (idx, start, len, label) in vols {
-                if partition.is_some_and(|p| p != idx) {
-                    continue;
-                }
-                let slice = Slice::new(dev.as_ref(), start, len)?;
-                if Volume::open(&slice)?.is_some() {
-                    chosen = Some((start, len, label));
-                    break;
-                }
-            }
-            let Some((start, len, label)) = chosen else { bail!("no se encontró ningún volumen HFS+/HFSX") };
+            let (start, len, label) = choose_volume(dev.as_ref(), partition)?;
             let slice = Slice::new(dev.as_ref(), start, len)?;
             let vol = Volume::open(&slice)?.expect("comprobado arriba");
             if !json {
@@ -164,6 +185,68 @@ fn main() -> anyhow::Result<()> {
             if tree {
                 println!();
                 print_tree(&scan.catalog, 2, 0);
+            }
+        }
+        Cmd::Rebuild { path, out, partition, dry_run, all } => {
+            if out.is_none() && !dry_run {
+                bail!("indica --out <archivo nuevo> o usa --dry-run");
+            }
+            let dev = open_image(&path).with_context(|| format!("no se pudo abrir {}", path.display()))?;
+            let (start, len, label) = choose_volume(dev.as_ref(), partition)?;
+            let slice = Slice::new(dev.as_ref(), start, len)?;
+            let vol = Volume::open(&slice)?.expect("comprobado");
+            eprintln!("Reconstruyendo {label} (el origen no se modifica)…");
+            let mut progress = CliProgress { quiet: false };
+            let scan = scan_volume(&vol, &mut progress)?;
+            let before = scan.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).count();
+            progress.phase("Plan de reconstrucción");
+            let plan = plan_rebuild(&vol, &scan)?;
+            let sum = summarize(&plan);
+            println!();
+            println!("Directorio: {} nodos → {} nodos{}", sum.nodes_before, sum.nodes_after,
+                if sum.nodes_after < sum.nodes_before {
+                    format!(" ({:.0} % más compacto)", 100.0 * (1.0 - sum.nodes_after as f64 / sum.nodes_before as f64))
+                } else { String::new() });
+            println!("Problemas antes: {before} · recuperados: {} · perdidos: {} · escritura: {}",
+                sum.recovered, sum.lost, human(sum.bytes_to_write));
+            for (k, v) in &sum.by_change {
+                println!("  {k}: {v}");
+            }
+            let limit = if all { usize::MAX } else { 40 };
+            for d in plan.diff.iter().take(limit) {
+                let path = d.new_path.as_deref().or(d.old_path.as_deref()).unwrap_or("—");
+                println!("  · {:<36} {path}", change_label(d.change));
+                if let Some(n) = &d.note {
+                    println!("    {:<36} {n}", "");
+                }
+            }
+            if plan.diff.len() > limit {
+                println!("  … y {} cambios más (usa --all)", plan.diff.len() - limit);
+            }
+            if dry_run {
+                println!("\nSimulación: no se ha escrito nada.");
+                return Ok(());
+            }
+            let out = out.expect("comprobado arriba");
+            let report = export_image(dev.as_ref(), start, len, &plan, &out, &mut progress)?;
+            println!("\nImagen reparada: {} ({} de datos copiados, {} escrituras, {})",
+                out.display(), human(report.bytes_copied), report.writes_applied, human(report.bytes_written));
+
+            // Verificación independiente de la imagen nueva.
+            let fixed = open_image(&out)?;
+            let fslice = Slice::new(fixed.as_ref(), start, len)?;
+            let fvol = Volume::open(&fslice)?.context("la imagen nueva no contiene un volumen HFS+")?;
+            let verify = scan_volume(&fvol, &mut CliProgress { quiet: true })?;
+            let remaining: Vec<_> = verify.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).collect();
+            if remaining.is_empty() {
+                println!("Verificación: ✓ la imagen reparada no tiene problemas ({} archivos, {} carpetas).",
+                    verify.result.stats.files, verify.result.stats.folders);
+            } else {
+                println!("Verificación: ✗ quedan {} problemas:", remaining.len());
+                for f in remaining {
+                    println!("  [{:?}] {} {}", f.severity, f.code, f.message);
+                }
+                std::process::exit(1);
             }
         }
     }

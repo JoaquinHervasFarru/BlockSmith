@@ -4,8 +4,8 @@ Verificación, recuperación y reconstrucción de directorios de disco para HFS+
 con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.
 
 Plan técnico aprobado: [`docs/BlockSmith-Plan-Tecnico-v3.pdf`](docs/BlockSmith-Plan-Tecnico-v3.pdf).
-Estado actual: **F1 completada** — lectura de imágenes (raw y DMG), particiones (GPT/APM/MBR)
-y escaneo de solo lectura de volúmenes HFS+/HFSX con 42 tipos de hallazgo.
+Estado actual: **F2 completada** — escaneo de volúmenes HFS+/HFSX (43 tipos de hallazgo) y
+reconstrucción del directorio exportada a una imagen nueva, verificada automáticamente.
 
 ## Requisitos
 
@@ -49,6 +49,13 @@ Escanear un volumen HFS+ (solo lectura; `--json` para salida estructurada, `--tr
 
 ```bash
 cargo run -p blocksmith-cli -- scan ruta/a/imagen.img
+```
+
+Reconstruir el directorio en una imagen nueva (el origen nunca se modifica; `--dry-run` muestra
+los cambios sin escribir):
+
+```bash
+cargo run -p blocksmith-cli -- rebuild ruta/a/imagen.img --out ruta/a/reparada.img
 ```
 
 Generar las fixtures de prueba (volumen sano, variante HFSX y una imagen por cada tipo de daño):
