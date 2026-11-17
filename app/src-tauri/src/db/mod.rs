@@ -2,7 +2,7 @@
 //! Nunca se guardan claves ni secretos de cifrado.
 
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use rusqlite::Connection;
 
@@ -20,7 +20,6 @@ impl Database {
         Self::init(conn)
     }
 
-    #[cfg(test)]
     pub fn in_memory() -> rusqlite::Result<Self> {
         Self::init(Connection::open_in_memory()?)
     }
@@ -38,8 +37,13 @@ impl Database {
         Ok(Self { conn: Mutex::new(conn) })
     }
 
+    /// Conexión con bloqueo exclusivo. Mantenerla el menor tiempo posible.
+    pub fn conn(&self) -> MutexGuard<'_, Connection> {
+        self.conn.lock().expect("db mutex envenenado")
+    }
+
     pub fn status(&self) -> rusqlite::Result<DbStatus> {
-        let conn = self.conn.lock().expect("db mutex envenenado");
+        let conn = self.conn();
         let schema_version = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         let mut stmt = conn.prepare(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",

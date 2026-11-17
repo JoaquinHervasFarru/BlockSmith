@@ -1,12 +1,21 @@
-//! Comandos expuestos a la UI. En F0 solo hay comandos de diagnóstico; la UI
-//! usa datos simulados (`ui/src/mocks`) mientras se implementa el motor.
+//! Comandos IPC. Las consultas son asíncronas para no bloquear la ventana; las
+//! operaciones largas devuelven un id de trabajo y avisan por eventos.
+
+use std::path::PathBuf;
+use std::sync::Arc;
 
 use serde::Serialize;
-use tauri::State;
+use serde_json::json;
+use tauri::{AppHandle, State};
 
-use crate::db::Database;
+use crate::core::dto::*;
+use crate::core::Core;
+use crate::jobs::JobManager;
+
+type Cmd<T> = Result<T, String>;
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     pub version: &'static str,
     pub platform: &'static str,
@@ -15,20 +24,138 @@ pub struct AppInfo {
 
 #[tauri::command]
 pub fn app_info() -> AppInfo {
-    AppInfo {
-        version: env!("CARGO_PKG_VERSION"),
-        platform: std::env::consts::OS,
-        phase: "F0",
-    }
+    AppInfo { version: env!("CARGO_PKG_VERSION"), platform: std::env::consts::OS, phase: "F3" }
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DbStatus {
     pub schema_version: i64,
     pub tables: Vec<String>,
 }
 
 #[tauri::command]
-pub fn db_status(db: State<'_, Database>) -> Result<DbStatus, String> {
-    db.status().map_err(|e| e.to_string())
+pub async fn db_status(core: State<'_, Arc<Core>>) -> Cmd<DbStatus> {
+    core.db().status().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn open_image(core: State<'_, Arc<Core>>, path: String) -> Cmd<SourceDto> {
+    Ok(core.open_image(&PathBuf::from(path))?)
+}
+
+#[tauri::command]
+pub async fn list_sources(core: State<'_, Arc<Core>>) -> Cmd<Vec<SourceDto>> {
+    Ok(core.list_sources()?)
+}
+
+#[tauri::command]
+pub async fn remove_source(core: State<'_, Arc<Core>>, id: i64) -> Cmd<()> {
+    Ok(core.remove_source(id)?)
+}
+
+#[tauri::command]
+pub async fn get_volume(core: State<'_, Arc<Core>>, id: i64) -> Cmd<VolumeDto> {
+    Ok(core.get_volume(id)?)
+}
+
+#[tauri::command]
+pub async fn list_sessions(core: State<'_, Arc<Core>>) -> Cmd<Vec<SessionDto>> {
+    Ok(core.list_sessions()?)
+}
+
+#[tauri::command]
+pub async fn get_session(core: State<'_, Arc<Core>>, id: i64) -> Cmd<SessionDto> {
+    Ok(core.get_session(id)?)
+}
+
+#[tauri::command]
+pub async fn get_findings(core: State<'_, Arc<Core>>, session_id: i64) -> Cmd<Vec<FindingDto>> {
+    Ok(core.findings(session_id)?)
+}
+
+#[tauri::command]
+pub async fn get_rebuild(core: State<'_, Arc<Core>>, id: i64) -> Cmd<RebuildDto> {
+    Ok(core.get_rebuild(id)?)
+}
+
+#[tauri::command]
+pub async fn get_diff(core: State<'_, Arc<Core>>, rebuild_id: i64) -> Cmd<Vec<DiffDto>> {
+    Ok(core.diff(rebuild_id)?)
+}
+
+#[tauri::command]
+pub async fn tree_children(core: State<'_, Arc<Core>>, side: String, id: i64, parent: Option<u64>) -> Cmd<Vec<TreeNodeDto>> {
+    Ok(core.tree_children(&side, id, parent)?)
+}
+
+#[tauri::command]
+pub async fn start_scan(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, volume_id: i64) -> Cmd<u64> {
+    let core = core.inner().clone();
+    Ok(jobs.spawn(app, "scan", move |p| Ok(json!({ "sessionId": core.scan(volume_id, p)? }))))
+}
+
+#[tauri::command]
+pub async fn start_plan(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, session_id: i64) -> Cmd<u64> {
+    let core = core.inner().clone();
+    Ok(jobs.spawn(app, "plan", move |p| Ok(json!({ "rebuildId": core.plan(session_id, p)? }))))
+}
+
+#[tauri::command]
+pub async fn start_export(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    jobs: State<'_, JobManager>,
+    rebuild_id: i64,
+    out_path: String,
+) -> Cmd<u64> {
+    let core = core.inner().clone();
+    Ok(jobs.spawn(app, "export", move |p| {
+        let r = core.export(rebuild_id, &PathBuf::from(out_path), p)?;
+        Ok(serde_json::to_value(r).unwrap_or_default())
+    }))
+}
+
+#[tauri::command]
+pub fn cancel_job(jobs: State<'_, JobManager>, job_id: u64) -> bool {
+    jobs.cancel(job_id)
+}
+
+#[tauri::command]
+pub async fn suggest_export_path(core: State<'_, Arc<Core>>, rebuild_id: i64) -> Cmd<String> {
+    let r = core.get_rebuild(rebuild_id)?;
+    let dir = PathBuf::from(core.settings()?.output_dir);
+    let stem = PathBuf::from(&r.source_path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "volumen".into());
+    let mut n = 1;
+    loop {
+        let name = if n == 1 { format!("{stem}-reparada.img") } else { format!("{stem}-reparada-{n}.img") };
+        let p = dir.join(name);
+        if !p.exists() {
+            return Ok(p.to_string_lossy().to_string());
+        }
+        n += 1;
+    }
+}
+
+#[tauri::command]
+pub async fn write_report(core: State<'_, Arc<Core>>, session_id: i64, format: String, path: Option<String>) -> Cmd<ReportDto> {
+    Ok(core.write_report(session_id, &format, path.as_deref().map(std::path::Path::new))?)
+}
+
+#[tauri::command]
+pub async fn list_reports(core: State<'_, Arc<Core>>, session_id: i64) -> Cmd<Vec<ReportDto>> {
+    Ok(core.reports(session_id)?)
+}
+
+#[tauri::command]
+pub async fn get_settings(core: State<'_, Arc<Core>>) -> Cmd<SettingsDto> {
+    Ok(core.settings()?)
+}
+
+#[tauri::command]
+pub async fn set_settings(core: State<'_, Arc<Core>>, settings: SettingsDto) -> Cmd<SettingsDto> {
+    if !settings.output_dir.is_empty() {
+        std::fs::create_dir_all(&settings.output_dir).map_err(|e| format!("no se puede crear la carpeta de salida: {e}"))?;
+    }
+    Ok(core.set_settings(&settings)?)
 }

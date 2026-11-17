@@ -30,6 +30,7 @@ CREATE TABLE volumes (
   source_id        INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
   partition_index  INTEGER,
   offset_bytes     INTEGER NOT NULL DEFAULT 0,
+  length_bytes     INTEGER NOT NULL DEFAULT 0,
   fs_type          TEXT NOT NULL CHECK (fs_type IN ('hfsplus','hfsx','apfs','ntfs','ext4')),
   name             TEXT,
   block_size       INTEGER,
@@ -221,6 +222,8 @@ CREATE INDEX idx_sessions_volume_started  ON sessions(volume_id, started_at);
 CREATE INDEX idx_smart_disk_taken         ON smart_snapshots(disk_id, taken_at);
 CREATE INDEX idx_alerts_disk_ack          ON alerts(disk_id, acknowledged_at);
 CREATE INDEX idx_undo_tx_seq              ON undo_blocks(tx_id, seq);
+CREATE INDEX idx_volumes_source           ON volumes(source_id);
+CREATE UNIQUE INDEX idx_sources_path      ON sources(path);
 
 INSERT INTO alert_rules (rule, threshold_json, poll_interval_min) VALUES
   ('REALLOCATED_INCREASE',   '{"delta": 1}',            360),
