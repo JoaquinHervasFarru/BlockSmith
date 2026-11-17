@@ -1,1 +1,0 @@
-//! Reversión de transacciones interrumpidas.

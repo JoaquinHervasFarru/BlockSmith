@@ -624,8 +624,12 @@ name = "blocksmith-txwriter"
 version = "0.1.0"
 dependencies = [
  "blocksmith-fs-core",
+ "blocksmith-fs-hfsplus",
+ "blocksmith-io",
  "serde",
+ "serde_json",
  "sha2 0.10.9",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 
