@@ -56,6 +56,25 @@ impl CatalogSnapshot {
         None
     }
 
+    /// Árbol plano (carpetas y archivos) para las vistas de comparación.
+    pub fn entries(&self) -> Vec<blocksmith_fs_core::TreeEntry> {
+        let folders = self.folders.iter().map(|(id, (k, _))| (id, k, true, 0u64));
+        let files = self
+            .files
+            .iter()
+            .map(|(id, (k, r))| (id, k, false, r.data_fork.logical_size + r.rsrc_fork.logical_size));
+        folders
+            .chain(files)
+            .map(|(id, k, is_folder, size_bytes)| blocksmith_fs_core::TreeEntry {
+                id: *id as u64,
+                parent: k.parent_id as u64,
+                name: from_hfs_name(&k.name),
+                is_folder,
+                size_bytes,
+            })
+            .collect()
+    }
+
     fn label(&self, id: u32, key: &CatalogKey) -> String {
         self.path_of(id).unwrap_or_else(|| format!("…/{} (CNID {id})", from_hfs_name(&key.name)))
     }
@@ -450,6 +469,7 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
 
     // Extents Overflow
     progress.phase("Árbol de extents");
+    check_cancel(progress)?;
     let no_overflow = OverflowMap::new();
     let ext_reader = vol.fork_reader(&vh.extents_file, cnid::EXTENTS_FILE, true, &no_overflow);
     let mut overflow = OverflowMap::new();
@@ -478,6 +498,7 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
 
     // Catálogo
     progress.phase("Catálogo: estructura");
+    check_cancel(progress)?;
     let cat_reader = vol.fork_reader(&vh.catalog_file, cnid::CATALOG_FILE, true, &overflow);
     let tree = match BTree::open(cat_reader)? {
         Ok(t) => t,
@@ -501,6 +522,7 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
     }
 
     progress.phase("Catálogo: coherencia");
+    check_cancel(progress)?;
     let catalog_nodes_used = ts.allocated_nodes;
     let before_invalid = f.per_code.get("HFS_RECORD_INVALID").copied().unwrap_or(0);
     let catalog = build_catalog(ts.records, &mut f);
@@ -510,7 +532,8 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
     stats.folders = catalog.folders.len().saturating_sub(1) as u64;
 
     progress.phase("Extents y bitmap de asignación");
-    check_allocation(vol, &catalog, &overflow, &mut f)?;
+    check_cancel(progress)?;
+    check_allocation(vol, &catalog, &overflow, &mut f, progress)?;
 
     let name = catalog
         .folders
@@ -711,7 +734,13 @@ struct Claim {
     id: u32,
 }
 
-fn check_allocation(vol: &Volume<'_>, cat: &CatalogSnapshot, overflow: &OverflowMap, f: &mut Findings) -> FsResult<()> {
+fn check_allocation(
+    vol: &Volume<'_>,
+    cat: &CatalogSnapshot,
+    overflow: &OverflowMap,
+    f: &mut Findings,
+    progress: &mut dyn Progress,
+) -> FsResult<()> {
     let vh = &vol.vh;
     let total = vh.total_blocks;
     let bs = vh.block_size as u64;
@@ -804,6 +833,10 @@ fn check_allocation(vol: &Volume<'_>, cat: &CatalogSnapshot, overflow: &Overflow
     let (mut leaked, mut unprotected) = (0u64, 0u64);
     let mut first_unprotected = None;
     for b in 0..total {
+        if b % (1 << 20) == 0 {
+            progress.advance(b as u64, total as u64);
+            check_cancel(progress)?;
+        }
         match (bitmap.is_set(b), claimed.is_set(b)) {
             (true, false) => leaked += 1,
             (false, true) => {

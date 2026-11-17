@@ -71,6 +71,43 @@ impl<'a> Volume<'a> {
     }
 }
 
+/// Nombre del volumen (nombre de la carpeta raíz) sin escanear todo el catálogo:
+/// busca el thread record de la raíz descendiendo por el índice. `None` si el
+/// catálogo está demasiado dañado para encontrarlo así.
+pub fn volume_name(vol: &Volume<'_>) -> Option<String> {
+    use crate::btree::{kind, split_record, BTree};
+    use crate::catalog::{cnid, CatalogKey, CatalogRecord};
+    let reader = vol.fork_reader(&vol.vh.catalog_file, cnid::CATALOG_FILE, true, &OverflowMap::new());
+    let tree = BTree::open(reader).ok()?.ok()?;
+    let binary = vol.vh.is_hfsx() && tree.header.key_compare_type == 0xBC;
+    let target = CatalogKey { parent_id: cnid::ROOT_FOLDER, name: vec![] };
+    let mut node_no = tree.header.root_node;
+    for _ in 0..16 {
+        let node = tree.read_node(node_no).ok()?.ok()?;
+        let is_index = node.desc.kind == kind::INDEX;
+        let mut chosen = None;
+        for i in 0..node.records.len() {
+            let (k, d) = split_record(node.record(i), is_index, &tree.header)?;
+            let key = CatalogKey::parse(k)?;
+            match key.compare(&target, binary) {
+                std::cmp::Ordering::Greater => break,
+                std::cmp::Ordering::Equal if !is_index => {
+                    return match CatalogRecord::parse(d)? {
+                        CatalogRecord::FolderThread(t) => Some(crate::unicode::from_hfs_name(&t.name)),
+                        _ => None,
+                    };
+                }
+                _ => chosen = Some(d),
+            }
+        }
+        if !is_index {
+            return None;
+        }
+        node_no = be_u32(chosen?, 0);
+    }
+    None
+}
+
 /// Extents completos de un fork: los 8 en línea más los del Extents Overflow, en orden.
 pub fn full_extents(fork: &ForkData, file_id: u32, fork_type: u8, overflow: &OverflowMap) -> Vec<Extent> {
     let mut out: Vec<Extent> = fork.extents.iter().copied().filter(|e| e.block_count > 0).collect();

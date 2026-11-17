@@ -420,8 +420,13 @@ version = "0.1.0"
 dependencies = [
  "blocksmith-crypto-layers",
  "blocksmith-fs-core",
+ "blocksmith-fs-hfsplus",
  "blocksmith-io",
+ "blocksmith-partition",
+ "blocksmith-rebuilder",
  "blocksmith-smart",
+ "chrono",
+ "rmp-serde",
  "rusqlite",
  "serde",
  "serde_json",
@@ -429,6 +434,9 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-notification",
+ "tempfile",
+ "thiserror 2.0.21",
+ "zstd",
 ]
 
 [[package]]

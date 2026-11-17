@@ -197,3 +197,16 @@ fn larger_volume_with_full_nodes() {
         assert!(s.result.stats.nodes_total > 100);
     }
 }
+
+#[test]
+fn volume_name_and_trees() {
+    let img = build_volume(&opts(), &sample_tree()).unwrap();
+    let dev = MemoryDevice::new(img.clone());
+    let vol = Volume::open(&dev).unwrap().unwrap();
+    assert_eq!(blocksmith_fs_hfsplus::volume::volume_name(&vol).as_deref(), Some("BlockSmith Test"));
+    let s = scan_volume(&vol, &mut Quiet).unwrap();
+    assert_eq!(s.catalog.entries().len(), 42 + 8 + 1);
+    let (_, plan) = rebuild(&img);
+    assert_eq!(plan.tree_after.len(), 42 + 8 + 1);
+    assert!(plan.tree_after.iter().any(|e| e.name == "Viaje Lisboa" && e.is_folder));
+}

@@ -18,7 +18,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use blocksmith_fs_core::{BlockWrite, DiffChange, DiffEntry, FsError, FsResult, RebuildPlan, WritePhase};
+use blocksmith_fs_core::{BlockWrite, DiffChange, DiffEntry, FsError, FsResult, RebuildPlan, TreeEntry, WritePhase};
 
 use crate::bitmap::AllocationBitmap;
 use crate::btree::attr as battr;
@@ -673,6 +673,16 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
             d.new_path = Some(path_in(new_items, id));
         }
     }
+    let tree_after = items
+        .iter()
+        .map(|(id, it)| TreeEntry {
+            id: *id as u64,
+            parent: it.parent as u64,
+            name: from_hfs_name(&it.name),
+            is_folder: it.is_folder(),
+            size_bytes: file_size(it),
+        })
+        .collect();
     Ok(RebuildPlan {
         writes,
         diff,
@@ -681,6 +691,8 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
         recovered_count: recovered,
         lost_count: lost,
         experimental: false,
+        tree_after,
+        root_id: cnid::ROOT_FOLDER as u64,
     })
 }
 

@@ -58,6 +58,16 @@ pub struct DiffEntry {
     pub note: Option<String>,
 }
 
+/// Elemento de un árbol de directorio, para las vistas de comparación.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TreeEntry {
+    pub id: u64,
+    pub parent: u64,
+    pub name: String,
+    pub is_folder: bool,
+    pub size_bytes: u64,
+}
+
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RebuildPlan {
     pub writes: Vec<BlockWrite>,
@@ -67,6 +77,12 @@ pub struct RebuildPlan {
     pub recovered_count: u64,
     pub lost_count: u64,
     pub experimental: bool,
+    /// Árbol de directorio resultante (para previsualizar antes de exportar).
+    #[serde(default)]
+    pub tree_after: Vec<TreeEntry>,
+    /// Identificador de la raíz en `tree_after`.
+    #[serde(default)]
+    pub root_id: u64,
 }
 
 impl RebuildPlan {
