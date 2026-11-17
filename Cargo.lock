@@ -1096,7 +1096,9 @@ dependencies = [
 name = "dirforge-partition"
 version = "0.1.0"
 dependencies = [
+ "crc32fast",
  "dirforge-io",
+ "serde",
  "thiserror 2.0.21",
 ]
 

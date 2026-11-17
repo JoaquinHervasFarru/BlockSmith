@@ -11,5 +11,10 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+crc32fast = "1.5.5"
 dirforge-io = { version = "0.1.0", path = "../io" }
+serde = { version = "1.0.229", features = ["derive"] }
 thiserror = "2.0.21"
+
+[dev-dependencies]
+crc32fast = "1.5.5"
