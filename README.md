@@ -4,9 +4,9 @@ Verificación, recuperación y reconstrucción de directorios de disco para HFS+
 con capa de cifrado, monitorización S.M.A.R.T. y medio de arranque externo.
 
 Plan técnico aprobado: [`docs/BlockSmith-Plan-Tecnico-v3.pdf`](docs/BlockSmith-Plan-Tecnico-v3.pdf).
-Estado actual: **F3 completada** — app de escritorio conectada al motor: abrir imágenes, analizar
-volúmenes HFS+/HFSX, revisar hallazgos, comparar el directorio antes y después, exportar una imagen
-reparada verificada, historial con informes HTML/JSON y ajustes.
+Estado actual: **F4 completada** — además de analizar y reparar imágenes HFS+/HFSX (F1–F3), la app y el
+agente `blocksmith-agent` vigilan la salud de los discos (S.M.A.R.T. y NVMe), guardan el histórico y
+generan alertas configurables.
 
 ## Requisitos
 
@@ -68,13 +68,41 @@ cargo run -p blocksmith-corruptor -- gen --out fixtures/hfsplus
 Los tests de `fs-hfsplus` validan las fixtures con `fsck.hfsplus` si está instalado
 (paquete `hfsprogs` en Debian/Ubuntu), como verificador independiente.
 
+## Salud de los discos
+
+La app lee la salud al abrirse (si la última lectura es antigua) y con «Leer ahora». Para vigilarla de
+forma continua, instala el agente como servicio del sistema: las lecturas necesitan permisos de
+administrador. El agente escribe en la misma base de datos que la app.
+
+Ver qué haría el agente una vez:
+
+```bash
+sudo blocksmith-agent once
+```
+
+Generar la definición del servicio (systemd en Linux, launchd en macOS, `sc.exe` en Windows):
+
+```bash
+blocksmith-agent print-service
+```
+
+| Plataforma | Lectura |
+|---|---|
+| Linux | Nativa (`SG_IO` para SATA, ioctl NVMe); si un disco no la admite, `smartctl` si está instalado |
+| macOS | `smartctl` (smartmontools) como programa externo |
+| Windows | `smartctl` por ahora; la lectura nativa está pendiente |
+
+Para demostraciones y pruebas sin hardware, `BLOCKSMITH_HEALTH_REPLAY=app/e2e/replay-demo.json` sustituye
+los discos reales por lecturas definidas en ese archivo.
+
 ## Estructura
 
 | Ruta | Contenido |
 |---|---|
 | `crates/` | Motor en Rust: io, partition, crypto-layers, smart, fs-core, fs-hfsplus, fs-apfs, fs-ntfs, fs-ext4, analyzer, rebuilder, txwriter, cli |
 | `helper/` | Proceso privilegiado para la escritura directa |
-| `agent/` | Servicio de monitorización S.M.A.R.T. |
+| `agent/` | Agente de salud de discos (servicio del sistema) |
+| `crates/store`, `crates/health` | Base de datos compartida y lógica de salud (reglas, recolector) |
 | `app/src-tauri/` | App de escritorio: comandos IPC, trabajos, SQLite (`migrations/`) |
 | `app/ui/` | React + TS: `styles/` (tokens), `mocks/`, `api/`, `components/`, `views/` |
 | `live/` | Receta del USB de arranque |

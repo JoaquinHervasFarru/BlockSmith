@@ -5,6 +5,7 @@
 //! de trabajo. La base de datos solo se bloquea durante cada consulta.
 
 pub mod dto;
+pub mod health;
 pub mod probe;
 pub mod report;
 pub mod snapshot;
@@ -744,6 +745,7 @@ impl Core {
             theme: "system".into(),
             log_level: "info".into(),
             export_encrypted_by_default: true,
+            health_check_on_start: true,
         };
         Ok(stored.and_then(|s| serde_json::from_str(&s).ok()).unwrap_or(defaults))
     }

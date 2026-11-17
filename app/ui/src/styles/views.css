@@ -240,3 +240,17 @@ a.list__row:hover { background: var(--surface-2); text-decoration: none; }
 .check { display: flex; gap: var(--space-2); align-items: flex-start; }
 .check input { margin-top: 4px; }
 .nowrap { white-space: nowrap; }
+
+/* ── F4: salud de discos ── */
+.disk-link { color: inherit; align-items: flex-start; }
+.disk-link:hover { text-decoration: none; }
+.disk-link:hover strong { color: var(--accent); }
+.disk-link > svg { width: 18px; height: 18px; margin-top: 2px; color: var(--text-3); flex: none; }
+.kv--grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); column-gap: var(--space-8); }
+.table tr.row--failing td { background: var(--crit-soft); }
+.table tr.row--warning td { background: var(--warn-soft); }
+.rules td { vertical-align: middle; }
+.inline-field { gap: var(--space-2); white-space: nowrap; }
+.input--num { width: 84px; text-align: right; }
+details > summary.summary { cursor: pointer; list-style: none; font-weight: var(--weight-semibold); }
+details > summary.summary::-webkit-details-marker { display: none; }

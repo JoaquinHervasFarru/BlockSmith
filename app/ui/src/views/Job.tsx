@@ -12,6 +12,7 @@ const PHASES: Record<JobKind, string[]> = {
   scan: ["Cabecera del volumen", "Árbol de extents", "Catálogo: estructura", "Catálogo: coherencia", "Extents y bitmap de asignación"],
   plan: ["Cabecera del volumen", "Árbol de extents", "Catálogo: estructura", "Catálogo: coherencia", "Extents y bitmap de asignación", "Plan de reconstrucción"],
   export: ["Copiando la imagen", "Aplicando la reconstrucción", "Verificando la imagen reparada"],
+  health: ["Leyendo la salud de los discos"],
 };
 
 /** Adónde ir al terminar cada tipo de trabajo. */
@@ -19,6 +20,7 @@ function destination(kind: JobKind, result: Record<string, unknown> | null, jobI
   if (!result) return null;
   if (kind === "scan") return `/sesion/${result.sessionId}`;
   if (kind === "plan") return `/reconstruccion/${result.rebuildId}`;
+  if (kind === "health") return "/salud";
   return `/reconstruccion/${result.rebuildId}/exportar?trabajo=${jobId}`;
 }
 

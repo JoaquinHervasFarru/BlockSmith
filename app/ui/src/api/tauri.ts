@@ -50,6 +50,16 @@ export const tauriBackend: Backend = {
   getSettings: () => invoke("get_settings"),
   setSettings: (settings) => invoke("set_settings", { settings }),
 
+  healthDisks: () => invoke("health_disks"),
+  healthDisk: (id) => invoke("health_disk", { id }),
+  healthStatus: () => invoke("health_status"),
+  startHealthRead: () => invoke("start_health_read"),
+  listAlerts: (openOnly) => invoke("list_alerts", { openOnly }),
+  ackAlert: (id) => invoke("ack_alert", { id }),
+  getAlertRules: () => invoke("get_alert_rules"),
+  setAlertRule: (rule) => invoke("set_alert_rule", { rule }),
+  onHealthUpdated: (cb) => listen("health-updated", () => cb()),
+
   onJobProgress: (cb) => listen<JobProgressEvent>("job-progress", (e) => cb(e.payload)),
   onJobFinished: (cb) => listen<JobFinishedEvent>("job-finished", (e) => cb(e.payload)),
 };

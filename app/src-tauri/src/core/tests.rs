@@ -163,3 +163,54 @@ fn settings_roundtrip_and_validation() {
     s.theme = "verde".into();
     assert!(e.core.set_settings(&s).is_err());
 }
+
+#[test]
+fn health_flow_with_replay_backend() {
+    use blocksmith_health::repo;
+    let e = env();
+    let replay = e.dir.path().join("replay.json");
+    std::fs::write(&replay, r#"{ "devices": [
+      { "info": { "path": "/dev/nvme0n1", "model": "Samsung SSD 980 PRO 1TB", "serial": "S5GX", "firmware": "5B2QGXA7", "bus": "nvme",
+                  "capacityBytes": 1000204886016, "removable": false, "rotational": false, "isBootDisk": true },
+        "sequence": [ { "kind": "read", "detail": { "protocol": "nvme", "overall": "unknown", "temperatureC": 64, "powerOnHours": 6120,
+            "percentageUsed": 4, "attributes": [], "source": "", "reasons": [],
+            "nvme": { "criticalWarning": 0, "temperatureK": 337, "availableSpare": 100, "spareThreshold": 10, "percentageUsed": 4,
+                      "dataUnitsRead": 1, "dataUnitsWritten": 2, "powerCycles": 3, "powerOnHours": 6120, "unsafeShutdowns": 0,
+                      "mediaErrors": 0, "errorLogEntries": 0 } } } ] },
+      { "info": { "path": "/dev/sdc", "model": "Caja USB", "serial": null, "firmware": null, "bus": "usb",
+                  "capacityBytes": 1000000000000, "removable": false, "rotational": null, "isBootDisk": false },
+        "sequence": [ { "kind": "unsupported", "detail": "el puente USB no transmite S.M.A.R.T." } ] }
+    ] }"#).unwrap();
+    std::env::set_var(blocksmith_smart::backends::REPLAY_ENV, &replay);
+    assert!(e.core.health_due().unwrap());
+    let r = e.core.health_collect(&mut NullProgress).unwrap();
+    std::env::remove_var(blocksmith_smart::backends::REPLAY_ENV);
+    assert_eq!((r.disks, r.read, r.unsupported), (2, 1, 1));
+    assert_eq!(r.new_alerts.len(), 1, "temperatura alta");
+    assert!(!e.core.health_due().unwrap(), "recién leído");
+
+    let disks = e.core.health_disks().unwrap();
+    let nvme = disks.iter().find(|d| d.bus == "nvme").unwrap();
+    assert_eq!(nvme.latest.as_ref().unwrap().nvme.as_ref().unwrap().percentage_used, 4);
+    let detail = e.core.health_disk(nvme.id).unwrap();
+    assert_eq!((detail.history.len(), detail.alerts.len()), (1, 1));
+    let st = e.core.health_status().unwrap();
+    assert_eq!((st.open_alerts, st.last_poll.unwrap().by.as_str()), (1, "app"));
+
+    e.core.acknowledge_alert(detail.alerts[0].id).unwrap();
+    assert!(e.core.acknowledge_alert(detail.alerts[0].id).is_err());
+    assert!(e.core.alerts(true).unwrap().is_empty());
+
+    let mut rules = e.core.alert_rules().unwrap();
+    let t = rules.iter_mut().find(|r| r.rule == "TEMP_HIGH").unwrap();
+    t.threshold = serde_json::json!({ "celsius": 70 });
+    assert_eq!(e.core.set_alert_rule(t).unwrap().iter().find(|r| r.rule == "TEMP_HIGH").unwrap().threshold["celsius"], 70);
+    t.threshold = serde_json::json!({ "celsius": -5 });
+    assert!(e.core.set_alert_rule(t).is_err());
+    let _ = repo::POLL_KEY;
+
+    // Ajustes antiguos sin el campo nuevo se siguen leyendo (con el valor por defecto).
+    e.core.db().set_setting("app", r#"{"outputDir":"/x","theme":"dark","logLevel":"info","exportEncryptedByDefault":true}"#).unwrap();
+    let s = e.core.settings().unwrap();
+    assert_eq!((s.theme.as_str(), s.health_check_on_start), ("dark", true));
+}

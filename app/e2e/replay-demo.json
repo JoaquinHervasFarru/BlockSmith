@@ -1,0 +1,299 @@
+{
+ "devices": [
+  {
+   "info": {
+    "path": "/dev/nvme0n1",
+    "model": "Samsung SSD 980 PRO 1TB",
+    "serial": "S5GXNF0R123456",
+    "firmware": "5B2QGXA7",
+    "bus": "nvme",
+    "capacityBytes": 1000204886016,
+    "removable": false,
+    "rotational": false,
+    "isBootDisk": true
+   },
+   "sequence": [
+    {
+     "kind": "read",
+     "detail": {
+      "protocol": "nvme",
+      "overall": "unknown",
+      "temperatureC": 38,
+      "powerOnHours": 6120,
+      "percentageUsed": 4,
+      "attributes": [],
+      "source": "",
+      "reasons": [],
+      "nvme": {
+       "criticalWarning": 0,
+       "temperatureK": 311,
+       "availableSpare": 100,
+       "spareThreshold": 10,
+       "percentageUsed": 4,
+       "dataUnitsRead": 41208331,
+       "dataUnitsWritten": 38812004,
+       "powerCycles": 1204,
+       "powerOnHours": 6120,
+       "unsafeShutdowns": 31,
+       "mediaErrors": 0,
+       "errorLogEntries": 0
+      }
+     }
+    },
+    {
+     "kind": "read",
+     "detail": {
+      "protocol": "nvme",
+      "overall": "unknown",
+      "temperatureC": 41,
+      "powerOnHours": 6120,
+      "percentageUsed": 4,
+      "attributes": [],
+      "source": "",
+      "reasons": [],
+      "nvme": {
+       "criticalWarning": 0,
+       "temperatureK": 314,
+       "availableSpare": 100,
+       "spareThreshold": 10,
+       "percentageUsed": 4,
+       "dataUnitsRead": 41208331,
+       "dataUnitsWritten": 38812004,
+       "powerCycles": 1204,
+       "powerOnHours": 6120,
+       "unsafeShutdowns": 31,
+       "mediaErrors": 0,
+       "errorLogEntries": 0
+      }
+     }
+    }
+   ]
+  },
+  {
+   "info": {
+    "path": "/dev/sdb",
+    "model": "WDC WD40EFRX-68N32N0",
+    "serial": "WX42D81F7KLP",
+    "firmware": "82.00A82",
+    "bus": "sata",
+    "capacityBytes": 4000787030016,
+    "removable": false,
+    "rotational": true,
+    "isBootDisk": false
+   },
+   "sequence": [
+    {
+     "kind": "read",
+     "detail": {
+      "protocol": "ata",
+      "overall": "unknown",
+      "temperatureC": 40,
+      "powerOnHours": 31870,
+      "percentageUsed": null,
+      "nvme": null,
+      "source": "",
+      "reasons": [],
+      "attributes": [
+       {
+        "id": 1,
+        "name": "Raw_Read_Error_Rate",
+        "flags": 47,
+        "value": 200,
+        "worst": 200,
+        "threshold": 51,
+        "raw": 0
+       },
+       {
+        "id": 3,
+        "name": "Spin_Up_Time",
+        "flags": 39,
+        "value": 177,
+        "worst": 175,
+        "threshold": 21,
+        "raw": 8141
+       },
+       {
+        "id": 5,
+        "name": "Reallocated_Sector_Ct",
+        "flags": 51,
+        "value": 199,
+        "worst": 199,
+        "threshold": 140,
+        "raw": 8
+       },
+       {
+        "id": 9,
+        "name": "Power_On_Hours",
+        "flags": 50,
+        "value": 57,
+        "worst": 57,
+        "threshold": 0,
+        "raw": 31870
+       },
+       {
+        "id": 12,
+        "name": "Power_Cycle_Count",
+        "flags": 50,
+        "value": 100,
+        "worst": 100,
+        "threshold": 0,
+        "raw": 77
+       },
+       {
+        "id": 194,
+        "name": "Temperature_Celsius",
+        "flags": 34,
+        "value": 110,
+        "worst": 101,
+        "threshold": 0,
+        "raw": 40
+       },
+       {
+        "id": 197,
+        "name": "Current_Pending_Sector",
+        "flags": 50,
+        "value": 200,
+        "worst": 200,
+        "threshold": 0,
+        "raw": 0
+       },
+       {
+        "id": 198,
+        "name": "Offline_Uncorrectable",
+        "flags": 48,
+        "value": 100,
+        "worst": 253,
+        "threshold": 0,
+        "raw": 0
+       },
+       {
+        "id": 199,
+        "name": "UDMA_CRC_Error_Count",
+        "flags": 50,
+        "value": 200,
+        "worst": 200,
+        "threshold": 0,
+        "raw": 0
+       }
+      ]
+     }
+    },
+    {
+     "kind": "read",
+     "detail": {
+      "protocol": "ata",
+      "overall": "unknown",
+      "temperatureC": 42,
+      "powerOnHours": 31870,
+      "percentageUsed": null,
+      "nvme": null,
+      "source": "",
+      "reasons": [],
+      "attributes": [
+       {
+        "id": 1,
+        "name": "Raw_Read_Error_Rate",
+        "flags": 47,
+        "value": 200,
+        "worst": 200,
+        "threshold": 51,
+        "raw": 0
+       },
+       {
+        "id": 3,
+        "name": "Spin_Up_Time",
+        "flags": 39,
+        "value": 177,
+        "worst": 175,
+        "threshold": 21,
+        "raw": 8141
+       },
+       {
+        "id": 5,
+        "name": "Reallocated_Sector_Ct",
+        "flags": 51,
+        "value": 199,
+        "worst": 199,
+        "threshold": 140,
+        "raw": 24
+       },
+       {
+        "id": 9,
+        "name": "Power_On_Hours",
+        "flags": 50,
+        "value": 57,
+        "worst": 57,
+        "threshold": 0,
+        "raw": 31870
+       },
+       {
+        "id": 12,
+        "name": "Power_Cycle_Count",
+        "flags": 50,
+        "value": 100,
+        "worst": 100,
+        "threshold": 0,
+        "raw": 77
+       },
+       {
+        "id": 194,
+        "name": "Temperature_Celsius",
+        "flags": 34,
+        "value": 110,
+        "worst": 101,
+        "threshold": 0,
+        "raw": 42
+       },
+       {
+        "id": 197,
+        "name": "Current_Pending_Sector",
+        "flags": 50,
+        "value": 200,
+        "worst": 200,
+        "threshold": 0,
+        "raw": 3
+       },
+       {
+        "id": 198,
+        "name": "Offline_Uncorrectable",
+        "flags": 48,
+        "value": 100,
+        "worst": 253,
+        "threshold": 0,
+        "raw": 0
+       },
+       {
+        "id": 199,
+        "name": "UDMA_CRC_Error_Count",
+        "flags": 50,
+        "value": 200,
+        "worst": 200,
+        "threshold": 0,
+        "raw": 0
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "info": {
+    "path": "/dev/sdc",
+    "model": "Samsung SSD 870 EVO (caja USB)",
+    "serial": null,
+    "firmware": null,
+    "bus": "usb",
+    "capacityBytes": 1000204886016,
+    "removable": false,
+    "rotational": null,
+    "isBootDisk": false
+   },
+   "sequence": [
+    {
+     "kind": "unsupported",
+     "detail": "el puente USB no transmite los datos S.M.A.R.T. del disco"
+    }
+   ]
+  }
+ ]
+}

@@ -69,6 +69,10 @@ export function SettingsView() {
           </select>
         </label>
         <label className="check">
+          <input type="checkbox" checked={draft.healthCheckOnStart} onChange={(e) => update({ healthCheckOnStart: e.target.checked })} />
+          <span>Leer la salud de los discos al abrir la app <small className="subtle">(si la última lectura es más antigua que el intervalo de las reglas)</small></span>
+        </label>
+        <label className="check">
           <input type="checkbox" checked={draft.exportEncryptedByDefault} disabled />
           <span>Exportar volúmenes cifrados manteniendo el cifrado <small className="subtle">(se aplicará cuando llegue el soporte de cifrado)</small></span>
         </label>

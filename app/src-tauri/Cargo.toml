@@ -25,10 +25,12 @@ tauri-build = "2.6.3"
 blocksmith-crypto-layers = { version = "0.1.0", path = "../../crates/crypto-layers" }
 blocksmith-fs-core = { version = "0.1.0", path = "../../crates/fs-core" }
 blocksmith-fs-hfsplus = { version = "0.1.0", path = "../../crates/fs-hfsplus" }
+blocksmith-health = { version = "0.1.0", path = "../../crates/health" }
 blocksmith-io = { version = "0.1.0", path = "../../crates/io" }
 blocksmith-partition = { version = "0.1.0", path = "../../crates/partition" }
 blocksmith-rebuilder = { version = "0.1.0", path = "../../crates/rebuilder" }
 blocksmith-smart = { version = "0.1.0", path = "../../crates/smart" }
+blocksmith-store = { version = "0.1.0", path = "../../crates/store" }
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 rmp-serde = "1.3.0"
 rusqlite = { version = "0.40.2", features = ["bundled"] }

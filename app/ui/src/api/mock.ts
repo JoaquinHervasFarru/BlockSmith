@@ -6,7 +6,7 @@
 import * as mock from "../mocks/data";
 import type { TreeNode } from "../types/models";
 import type {
-  ChangeKey, DiffDto, FindingDto, JobFinishedEvent, JobKind, JobProgressEvent, RebuildDto, ReportDto, SessionDto,
+  AlertDto, ChangeKey, DiffDto, DiskDto, NvmeHealthDto, RuleDto, SnapshotDto, FindingDto, JobFinishedEvent, JobKind, JobProgressEvent, RebuildDto, ReportDto, SessionDto,
   SettingsDto, SourceDto, TreeNodeDto, VolumeDto,
 } from "../types/api";
 import type { Backend } from "./backend";
@@ -25,7 +25,61 @@ const PHASES: Record<JobKind, string[]> = {
   scan: ["Cabecera del volumen", "Árbol de extents", "Catálogo: estructura", "Catálogo: coherencia", "Extents y bitmap de asignación"],
   plan: ["Cabecera del volumen", "Catálogo: estructura", "Catálogo: coherencia", "Plan de reconstrucción"],
   export: ["Copiando la imagen", "Aplicando la reconstrucción", "Verificando la imagen reparada"],
+  health: ["Leyendo la salud de los discos"],
 };
+
+// ── Salud de los discos (a partir de mocks/data.ts) ─────────────────────────
+const diskPaths: Record<number, string> = { 1: "/dev/disk0", 2: "/dev/disk4", 3: "/dev/sdb", 4: "\\\\.\\PhysicalDrive1", 5: "/dev/disk6" };
+const reasonsFor: Record<string, string[]> = {
+  warning: ["24 sectores reasignados", "3 sectores pendientes de reasignación"],
+  failing: ["Reallocated_Sector_Ct por debajo del umbral (7 ≤ 10)"],
+};
+const appleNvme: NvmeHealthDto = {
+  criticalWarning: 0, temperatureK: 311, availableSpare: 100, spareThreshold: 99, percentageUsed: 4, dataUnitsRead: 41_208_331,
+  dataUnitsWritten: 38_812_004, powerCycles: 1_204, powerOnHours: 6_381, unsafeShutdowns: 31, mediaErrors: 0, errorLogEntries: 0,
+};
+function snapshotDto(s: (typeof mock.smartSnapshots)[number]): SnapshotDto {
+  const disk = mock.disks.find((d) => d.id === s.diskId)!;
+  const isNvme = disk.bus === "nvme";
+  return {
+    id: s.id, diskId: s.diskId, takenAt: s.takenAt, overall: s.overall, temperatureC: s.temperatureC, powerOnHours: s.powerOnHours,
+    percentageUsed: s.percentageUsed, protocol: isNvme ? "nvme" : "ata",
+    attributes: s.attributes.map((a) => ({ id: a.attrId, name: a.name, flags: 0, value: a.value, worst: a.worst, threshold: a.threshold, raw: a.rawValue })),
+    nvme: isNvme ? { ...appleNvme, temperatureK: (s.temperatureC ?? 38) + 273, powerOnHours: s.powerOnHours ?? 0 } : null,
+    reasons: reasonsFor[s.overall] ?? [], source: "agente",
+  };
+}
+const healthState = {
+  alerts: mock.alerts.map<AlertDto>((a) => {
+    const d = mock.disks.find((x) => x.id === a.diskId)!;
+    const labels: Record<string, string> = {
+      SMART_FAILING: "El disco predice un fallo", PENDING_SECTORS: "Sectores pendientes de reasignación",
+      REALLOCATED_INCREASE: "Aumentan los sectores reasignados", TEMP_HIGH: "Temperatura alta",
+    };
+    return {
+      id: a.id, diskId: a.diskId, diskModel: d.model, diskPath: diskPaths[d.id] ?? null, rule: a.rule, ruleLabel: labels[a.rule] ?? a.rule,
+      severity: a.severity, message: a.message, createdAt: a.createdAt, acknowledgedAt: a.acknowledgedAt,
+    };
+  }),
+  rules: [
+    ["SMART_FAILING", {}, 360], ["REALLOCATED_INCREASE", { delta: 1 }, 360], ["PENDING_SECTORS", { min: 1 }, 360],
+    ["NVME_CRITICAL_WARNING", { mask: 255 }, 360], ["NVME_WEAR", { percentage_used: 90 }, 1440], ["TEMP_HIGH", { celsius: 60 }, 60],
+  ].map<RuleDto>(([rule, threshold, poll], i) => ({ id: i + 1, rule: rule as string, enabled: true, threshold: threshold as Record<string, number>, pollIntervalMin: poll as number })),
+  lastPoll: { at: "2026-11-17T03:00:04Z", by: "agente", backend: "nativo", disks: 5, read: 3, error: null as string | null },
+};
+function diskDto(d: (typeof mock.disks)[number]): DiskDto {
+  const snaps = mock.smartSnapshots.filter((s) => s.diskId === d.id);
+  const last = snaps.at(-1);
+  return {
+    id: d.id, path: diskPaths[d.id] ?? null, model: d.model, serial: d.serial, firmware: d.firmware, bus: d.bus, capacityBytes: d.capacityBytes,
+    isBootDisk: d.isBootDisk, removable: d.bus === "usb", rotational: d.bus === "sata" ? true : d.bus === "nvme" ? false : null,
+    readStatus: d.smartSupported ? "ok" : "unsupported",
+    readNote: d.smartSupported ? null : "La caja USB no transmite los datos S.M.A.R.T. del disco.",
+    firstSeen: d.firstSeen, lastSeen: d.lastSeen, latest: last ? snapshotDto(last) : null,
+    openAlerts: healthState.alerts.filter((a) => a.diskId === d.id && !a.acknowledgedAt).length,
+  };
+}
+const healthCbs = new Set<() => void>();
 
 interface State {
   sources: SourceDto[];
@@ -91,7 +145,7 @@ const state: State = {
     { id: 1, rebuildId: 1, cnid: 2201, change: "valence_fixed", oldPath: "/Navidad", newPath: "/Navidad", itemType: "folder", sizeBytes: null, note: "412 → 410 elementos" },
   ],
   reports: [],
-  settings: { outputDir: "/home/usuario/BlockSmith", theme: "system", logLevel: "info", exportEncryptedByDefault: true },
+  settings: { outputDir: "/home/usuario/BlockSmith", theme: "system", logLevel: "info", exportEncryptedByDefault: true, healthCheckOnStart: true },
   damaged: new Set([1]),
   nextId: 100,
 };
@@ -343,6 +397,54 @@ export const mockBackend: Backend = {
     if (!s.outputDir.trim()) throw new Error("la carpeta de salida no puede estar vacía");
     state.settings = clone(s);
     return clone(s);
+  },
+
+  async healthDisks() {
+    await wait(120);
+    return mock.disks.map(diskDto).sort((a, b) => Number(b.isBootDisk) - Number(a.isBootDisk));
+  },
+  async healthDisk(id) {
+    await wait(100);
+    const d = mock.disks.find((x) => x.id === id);
+    if (!d) throw new Error(`disco ${id} no encontrado`);
+    return {
+      disk: diskDto(d),
+      history: mock.smartSnapshots.filter((s) => s.diskId === id).map(snapshotDto),
+      alerts: clone(healthState.alerts.filter((a) => a.diskId === id)),
+    };
+  },
+  async healthStatus() {
+    await wait(60);
+    return { lastPoll: clone(healthState.lastPoll), backend: "nativo", pollIntervalMin: 60, openAlerts: healthState.alerts.filter((a) => !a.acknowledgedAt).length };
+  },
+  async startHealthRead() {
+    return runJob("health", () => {
+      healthState.lastPoll = { ...healthState.lastPoll, at: nowIso(), by: "app" };
+      healthCbs.forEach((cb) => cb());
+      return { disks: 5, read: 3, unsupported: 2, permissionDenied: 0, failed: 0, newAlerts: [] };
+    });
+  },
+  async listAlerts(openOnly) {
+    await wait(80);
+    return clone(healthState.alerts.filter((a) => !openOnly || !a.acknowledgedAt));
+  },
+  async ackAlert(id) {
+    const a = healthState.alerts.find((x) => x.id === id);
+    if (!a || a.acknowledgedAt) throw new Error(`la alerta ${id} no existe o ya estaba confirmada`);
+    a.acknowledgedAt = nowIso();
+    healthCbs.forEach((cb) => cb());
+  },
+  async getAlertRules() {
+    return clone(healthState.rules);
+  },
+  async setAlertRule(rule) {
+    if (Object.values(rule.threshold).some((v) => v < 0)) throw new Error("los umbrales no pueden ser negativos");
+    healthState.rules = healthState.rules.map((r) => (r.id === rule.id ? { ...clone(rule), pollIntervalMin: Math.min(10_080, Math.max(15, rule.pollIntervalMin)) } : r));
+    return clone(healthState.rules);
+  },
+  async onHealthUpdated(cb) {
+    healthCbs.add(cb);
+    return () => healthCbs.delete(cb);
   },
 
   async onJobProgress(cb) {

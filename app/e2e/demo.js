@@ -71,6 +71,29 @@ const BASE = process.env.BLOCKSMITH_URL || 'http://localhost:1420';
   await p.getByText('No se ha modificado nada').waitFor();
   await step('11-cancelado');
 
+  // Salud de los discos (F4)
+  await p.goto(BASE + '/#/salud');
+  await p.getByText('WDC WD40EFRX-68N32N0').waitFor();
+  await step('12-salud');
+  await p.getByRole('link', { name: /WDC WD40EFRX/ }).click();
+  await p.waitForURL(/#\/disco\/3/);
+  await p.getByText('Atributos S.M.A.R.T.').waitFor();
+  await p.getByText('Sectores reasignados y pendientes').waitFor();
+  await step('13-disco');
+  await p.goto(BASE + '/#/alertas');
+  await p.getByText('Abiertas (3)').waitFor();
+  await p.getByRole('button', { name: /Confirmar/ }).first().click();
+  await p.getByText('Abiertas (2)').waitFor();
+  await p.getByLabel('Temperatura alta: A partir de').fill('55');
+  await p.getByRole('button', { name: /Guardar reglas/ }).click();
+  await p.getByText('Reglas guardadas').waitFor();
+  await step('14-alertas');
+  await p.goto(BASE + '/#/salud');
+  await p.getByRole('button', { name: /Leer ahora/ }).click();
+  await p.waitForURL(/#\/salud$/, { timeout: 15000 });
+  await p.getByText(/Última lectura hace un momento por la app/).waitFor();
+  await step('15-salud-leida');
+
   console.log(errors.length ? 'ERRORES:\n' + errors.join('\n') : 'SIN ERRORES DE CONSOLA');
   await b.close();
 })().catch(e => { console.error('FALLO:', e.message); process.exit(1); });

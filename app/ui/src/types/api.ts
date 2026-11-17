@@ -164,6 +164,7 @@ export interface SettingsDto {
   theme: "system" | "light" | "dark";
   logLevel: "error" | "warn" | "info" | "debug";
   exportEncryptedByDefault: boolean;
+  healthCheckOnStart: boolean;
 }
 
 export interface AppInfo {
@@ -172,7 +173,7 @@ export interface AppInfo {
   phase: string;
 }
 
-export type JobKind = "scan" | "plan" | "export";
+export type JobKind = "scan" | "plan" | "export" | "health";
 
 export interface JobProgressEvent {
   jobId: number;
@@ -189,4 +190,110 @@ export interface JobFinishedEvent {
   cancelled: boolean;
   result: Record<string, unknown> | null;
   error: string | null;
+}
+
+// ── Salud de los discos (F4) ───────────────────────────────────────────────
+
+export type OverallKey = "passed" | "warning" | "failing" | "unknown";
+
+export interface AtaAttributeDto {
+  id: number;
+  name: string;
+  flags: number;
+  value: number;
+  worst: number;
+  threshold: number;
+  raw: number;
+}
+
+export interface NvmeHealthDto {
+  criticalWarning: number;
+  temperatureK: number;
+  availableSpare: number;
+  spareThreshold: number;
+  percentageUsed: number;
+  dataUnitsRead: number;
+  dataUnitsWritten: number;
+  powerCycles: number;
+  powerOnHours: number;
+  unsafeShutdowns: number;
+  mediaErrors: number;
+  errorLogEntries: number;
+}
+
+export interface SnapshotDto {
+  id: number;
+  diskId: number;
+  takenAt: string;
+  overall: OverallKey;
+  temperatureC: number | null;
+  powerOnHours: number | null;
+  percentageUsed: number | null;
+  protocol: "ata" | "nvme" | null;
+  attributes: AtaAttributeDto[];
+  nvme: NvmeHealthDto | null;
+  reasons: string[];
+  source: string | null;
+}
+
+export interface DiskDto {
+  id: number;
+  path: string | null;
+  model: string | null;
+  serial: string | null;
+  firmware: string | null;
+  bus: "sata" | "nvme" | "usb" | "other";
+  capacityBytes: number;
+  isBootDisk: boolean;
+  removable: boolean;
+  rotational: boolean | null;
+  readStatus: "ok" | "unsupported" | "permission" | "failed" | null;
+  readNote: string | null;
+  firstSeen: string;
+  lastSeen: string;
+  latest: SnapshotDto | null;
+  openAlerts: number;
+}
+
+export interface AlertDto {
+  id: number;
+  diskId: number;
+  diskModel: string | null;
+  diskPath: string | null;
+  rule: string;
+  ruleLabel: string;
+  severity: SeverityKey;
+  message: string;
+  createdAt: string;
+  acknowledgedAt: string | null;
+}
+
+export interface DiskDetailDto {
+  disk: DiskDto;
+  history: SnapshotDto[];
+  alerts: AlertDto[];
+}
+
+export interface RuleDto {
+  id: number;
+  rule: string;
+  enabled: boolean;
+  threshold: Record<string, number>;
+  pollIntervalMin: number;
+}
+
+export interface PollStatusDto {
+  at: string;
+  by: string;
+  backend: string;
+  disks: number;
+  read: number;
+  error: string | null;
+}
+
+export interface HealthStatusDto {
+  lastPoll: PollStatusDto | null;
+  backend: string;
+  pollIntervalMin: number;
+  openAlerts: number;
 }

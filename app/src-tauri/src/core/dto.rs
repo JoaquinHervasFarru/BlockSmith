@@ -188,4 +188,11 @@ pub struct SettingsDto {
     pub theme: String,
     pub log_level: String,
     pub export_encrypted_by_default: bool,
+    /// Leer la salud de los discos al abrir la app si la última lectura es antigua.
+    #[serde(default = "default_true")]
+    pub health_check_on_start: bool,
+}
+
+fn default_true() -> bool {
+    true
 }

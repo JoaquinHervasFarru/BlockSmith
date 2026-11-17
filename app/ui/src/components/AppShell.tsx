@@ -1,9 +1,9 @@
 import {
   Activity, Bell, Database, HardDrive, HardDriveDownload, History, KeyRound, LifeBuoy, Monitor, Moon, Settings, Sun, Undo2,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { usingMocks } from "../api";
+import { backend, usingMocks } from "../api";
 import { useUi, type ThemePref } from "../store/ui";
 
 interface Item { to: string; label: string; icon: ReactNode; count?: number }
@@ -17,10 +17,10 @@ const groups: { label: string; items: Item[] }[] = [
     ],
   },
   {
-    label: "Salud · vista previa",
+    label: "Salud",
     items: [
       { to: "/salud", label: "Salud de los discos", icon: <Activity /> },
-      { to: "/alertas", label: "Alertas", icon: <Bell /> },
+      { to: "/alertas", label: "Alertas", icon: <Bell />, count: -1 },
     ],
   },
   {
@@ -44,8 +44,28 @@ const themes: { value: ThemePref; label: string; icon: ReactNode }[] = [
   { value: "dark", label: "Oscuro", icon: <Moon /> },
 ];
 
+/** Número de alertas abiertas, actualizado periódicamente y ante cambios. */
+function useOpenAlerts() {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    const refresh = () => void backend.healthStatus().then((s) => setN(s.openAlerts)).catch(() => undefined);
+    refresh();
+    const t = setInterval(refresh, 60_000);
+    let off: (() => void) | undefined;
+    void backend.onHealthUpdated(refresh).then((f) => (off = f));
+    window.addEventListener("blocksmith:alerts-changed", refresh);
+    return () => {
+      clearInterval(t);
+      off?.();
+      window.removeEventListener("blocksmith:alerts-changed", refresh);
+    };
+  }, []);
+  return n;
+}
+
 export function AppShell() {
   const { theme, setTheme } = useUi();
+  const openAlerts = useOpenAlerts();
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -60,7 +80,7 @@ export function AppShell() {
               <NavLink key={it.to} to={it.to} end={it.to === "/"} className="nav-link">
                 {it.icon}
                 {it.label}
-                {it.count ? <span className="badge badge--crit count">{it.count}</span> : null}
+                {it.count === -1 && openAlerts > 0 ? <span className="badge badge--crit count" aria-label={`${openAlerts} alertas abiertas`}>{openAlerts}</span> : null}
               </NavLink>
             ))}
           </nav>

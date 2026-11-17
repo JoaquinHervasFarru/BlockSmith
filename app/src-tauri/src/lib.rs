@@ -7,7 +7,7 @@ mod jobs;
 
 use std::sync::Arc;
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 pub fn run() {
     tauri::Builder::default()
@@ -23,8 +23,21 @@ pub fn run() {
                 .or_else(|_| app.path().home_dir())
                 .unwrap_or_else(|_| data_dir.clone())
                 .join("BlockSmith");
-            app.manage(Arc::new(core::Core::new(db, data_dir, output_dir)));
+            let core = Arc::new(core::Core::new(db, data_dir, output_dir));
+            app.manage(core.clone());
             app.manage(jobs::JobManager::default());
+
+            // Lectura de salud al abrir, en segundo plano, si la última es antigua.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                if !core.health_due().unwrap_or(false) {
+                    return;
+                }
+                if let Ok(report) = core.health_collect(&mut core::NullProgress) {
+                    commands::notify_alerts(&handle, &report.new_alerts);
+                    let _ = handle.emit("health-updated", &report);
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -49,6 +62,14 @@ pub fn run() {
             commands::list_reports,
             commands::get_settings,
             commands::set_settings,
+            commands::health_disks,
+            commands::health_disk,
+            commands::health_status,
+            commands::start_health_read,
+            commands::list_alerts,
+            commands::ack_alert,
+            commands::get_alert_rules,
+            commands::set_alert_rule,
         ])
         .run(tauri::generate_context!())
         .expect("error al iniciar BlockSmith");

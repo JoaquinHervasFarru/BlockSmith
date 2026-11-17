@@ -26,7 +26,7 @@ código, interfaz, textos, nombre, logotipo y paleta.
 | fs-ntfs | Documentación pública de la estructura de NTFS |
 | fs-ext4 | Documentación del kernel Linux: ext4 Data Structures and Algorithms, jbd2 |
 | crypto-layers | LUKS2 On-Disk Format Specification; documentación pública de BitLocker |
-| smart | ATA/ATAPI Command Set (ACS), NVM Express Base Specification |
+| smart | ATA/ATAPI Command Set (ACS) y SAT (ATA PASS-THROUGH), NVM Express Base Specification (log 0x02), documentación del formato JSON de `smartctl` (se invoca como programa externo, sin enlazar código GPL) |
 | UI | Diseño propio (docs/design-system.md) |
 
 Antes de publicar se recomienda una revisión legal.

@@ -9,6 +9,7 @@ use serde_json::json;
 use tauri::{AppHandle, State};
 
 use crate::core::dto::*;
+use crate::db::DbStatus;
 use crate::core::Core;
 use crate::jobs::JobManager;
 
@@ -25,13 +26,6 @@ pub struct AppInfo {
 #[tauri::command]
 pub fn app_info() -> AppInfo {
     AppInfo { version: env!("CARGO_PKG_VERSION"), platform: std::env::consts::OS, phase: "F3" }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DbStatus {
-    pub schema_version: i64,
-    pub tables: Vec<String>,
 }
 
 #[tauri::command]
@@ -158,4 +152,65 @@ pub async fn set_settings(core: State<'_, Arc<Core>>, settings: SettingsDto) -> 
         std::fs::create_dir_all(&settings.output_dir).map_err(|e| format!("no se puede crear la carpeta de salida: {e}"))?;
     }
     Ok(core.set_settings(&settings)?)
+}
+
+// ── Salud de los discos ───────────────────────────────────────────────────
+
+use blocksmith_health::repo::{AlertRow, DiskRow};
+use blocksmith_health::Rule;
+
+use crate::core::health::{notification_text, DiskDetailDto, HealthStatusDto};
+
+/// Muestra una notificación de escritorio si hay alertas nuevas.
+pub fn notify_alerts(app: &AppHandle, alerts: &[blocksmith_health::collector::NewAlert]) {
+    use tauri_plugin_notification::NotificationExt;
+    if let Some((title, body)) = notification_text(alerts) {
+        let _ = app.notification().builder().title(title).body(body).show();
+    }
+}
+
+#[tauri::command]
+pub async fn health_disks(core: State<'_, Arc<Core>>) -> Cmd<Vec<DiskRow>> {
+    Ok(core.health_disks()?)
+}
+
+#[tauri::command]
+pub async fn health_disk(core: State<'_, Arc<Core>>, id: i64) -> Cmd<DiskDetailDto> {
+    Ok(core.health_disk(id)?)
+}
+
+#[tauri::command]
+pub async fn health_status(core: State<'_, Arc<Core>>) -> Cmd<HealthStatusDto> {
+    Ok(core.health_status()?)
+}
+
+#[tauri::command]
+pub async fn start_health_read(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>) -> Cmd<u64> {
+    let core = core.inner().clone();
+    let handle = app.clone();
+    Ok(jobs.spawn(app, "health", move |p| {
+        let r = core.health_collect(p)?;
+        notify_alerts(&handle, &r.new_alerts);
+        Ok(serde_json::to_value(r).unwrap_or_default())
+    }))
+}
+
+#[tauri::command]
+pub async fn list_alerts(core: State<'_, Arc<Core>>, open_only: bool) -> Cmd<Vec<AlertRow>> {
+    Ok(core.alerts(open_only)?)
+}
+
+#[tauri::command]
+pub async fn ack_alert(core: State<'_, Arc<Core>>, id: i64) -> Cmd<()> {
+    Ok(core.acknowledge_alert(id)?)
+}
+
+#[tauri::command]
+pub async fn get_alert_rules(core: State<'_, Arc<Core>>) -> Cmd<Vec<Rule>> {
+    Ok(core.alert_rules()?)
+}
+
+#[tauri::command]
+pub async fn set_alert_rule(core: State<'_, Arc<Core>>, rule: Rule) -> Cmd<Vec<Rule>> {
+    Ok(core.set_alert_rule(&rule)?)
 }

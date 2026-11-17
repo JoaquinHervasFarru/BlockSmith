@@ -1,5 +1,5 @@
 import type {
-  AppInfo, DiffDto, FindingDto, JobFinishedEvent, JobProgressEvent, RebuildDto, ReportDto, SessionDto, SettingsDto,
+  AlertDto, AppInfo, DiffDto, DiskDetailDto, DiskDto, HealthStatusDto, RuleDto, FindingDto, JobFinishedEvent, JobProgressEvent, RebuildDto, ReportDto, SessionDto, SettingsDto,
   SourceDto, TreeNodeDto, VolumeDto,
 } from "../types/api";
 
@@ -39,6 +39,17 @@ export interface Backend {
 
   getSettings(): Promise<SettingsDto>;
   setSettings(s: SettingsDto): Promise<SettingsDto>;
+
+  healthDisks(): Promise<DiskDto[]>;
+  healthDisk(id: number): Promise<DiskDetailDto>;
+  healthStatus(): Promise<HealthStatusDto>;
+  startHealthRead(): Promise<number>;
+  listAlerts(openOnly: boolean): Promise<AlertDto[]>;
+  ackAlert(id: number): Promise<void>;
+  getAlertRules(): Promise<RuleDto[]>;
+  setAlertRule(rule: RuleDto): Promise<RuleDto[]>;
+  /** Aviso de que la app actualizó la salud en segundo plano. */
+  onHealthUpdated(cb: () => void): Promise<() => void>;
 
   onJobProgress(cb: (e: JobProgressEvent) => void): Promise<() => void>;
   onJobFinished(cb: (e: JobFinishedEvent) => void): Promise<() => void>;
