@@ -14,7 +14,7 @@ pub fn validate_recovery_password(input: &str) -> Result<[u16; 8], usize> {
     for (i, g) in groups.iter().enumerate() {
         let ok = g.len() == 6 && g.bytes().all(|b| b.is_ascii_digit());
         let n: u32 = if ok { g.parse().map_err(|_| i)? } else { return Err(i) };
-        if n % 11 != 0 || n >= 720_896 {
+        if !n.is_multiple_of(11) || n >= 720_896 {
             return Err(i);
         }
         out[i] = (n / 11) as u16;

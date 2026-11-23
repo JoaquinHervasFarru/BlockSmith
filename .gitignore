@@ -7,3 +7,4 @@ app/src-tauri/gen/
 # Las fixtures binarias grandes se generan con tools/corruptor; no se versionan.
 fixtures/**/*.img
 fixtures/**/*.dmg
+__pycache__/

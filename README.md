@@ -14,7 +14,7 @@ transaccional, con copia de deshacer, y recuperar transacciones interrumpidas.
 
 ## Requisitos
 
-- Rust ≥ 1.83 y Node.js ≥ 20
+- Rust ≥ 1.90 y Node.js ≥ 20
 - Linux: `libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libssl-dev`
 - macOS: Xcode Command Line Tools · Windows: WebView2 + MSVC Build Tools
 
@@ -143,6 +143,20 @@ los discos reales por lecturas definidas en ese archivo.
 5 capas de cifrado, sesiones, hallazgos, reconstrucciones, diff, una transacción interrumpida,
 30 días de S.M.A.R.T., alertas, informes y medios de arranque. La UI los usa automáticamente
 fuera de Tauri. Dentro de Tauri se fuerzan con `VITE_USE_MOCKS=true`.
+
+## Integración continua
+
+Cada *push* a `main` y cada *pull request* ejecutan, en GitHub Actions:
+
+| Workflow | Qué comprueba |
+|---|---|
+| `ci.yml` · Linux | `cargo fmt`, `clippy -D warnings` y todos los tests, incluidos los que validan las reconstrucciones con `fsck.hfsplus` |
+| `ci.yml` · MSRV | Compilación con Rust 1.90 |
+| `ci.yml` · Windows y macOS | `clippy -D warnings` y todos los tests |
+| `ci.yml` · Interfaz | Tipos de TypeScript y compilación de la UI |
+| `ci.yml` · Extremo a extremo | `scripts/ci-e2e-linux.sh`: recorrido en el navegador (motor simulado) y las tres pruebas de la app real con tauri-driver; las capturas quedan como artefacto |
+| `ci.yml` · Licencias | `scripts/licenses.py --check` |
+| `macos-hfs.yml` | `scripts/macos-hfs-validate.sh` en macOS: volúmenes creados por `hdiutil` (HFS+, HFS+ con registro y HFSX; GPT, APM, MBR y sin mapa) con miles de archivos, Unicode, enlaces duros, xattrs, *resource forks* y compresión HFS. Escaneo sin hallazgos, reconstrucción validada con el `fsck_hfs` de Apple y comparación del volumen montado (contenido, xattrs, flags, CNID y fechas); lectura de UDRO/UDZO/UDBZ/UDTO, error claro con ULFO/ULMO, y reparación de daños sobre un volumen de Apple. También se ejecuta cada semana |
 
 ## Licencia
 

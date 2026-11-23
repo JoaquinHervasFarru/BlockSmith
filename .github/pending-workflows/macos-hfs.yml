@@ -1,0 +1,51 @@
+name: HFS+ en macOS
+
+# Validación contra volúmenes creados por el propio macOS (hdiutil/newfs_hfs) y
+# comprobados con su fsck_hfs: ver scripts/macos-hfs-validate.sh.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Semanal: detecta cambios en las herramientas de las nuevas imágenes de macOS.
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  validar:
+    name: Volúmenes de Apple (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked -p blocksmith-cli -p blocksmith-corruptor
+      - name: Validación
+        run: >-
+          scripts/macos-hfs-validate.sh target/release/blocksmith-cli
+          target/release/blocksmith-corruptor "$RUNNER_TEMP/hfs"
+      - name: Registros
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hfs-registros-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/hfs/*.log
+            ${{ runner.temp }}/hfs/*.json
+            ${{ runner.temp }}/hfs/*.err
+          retention-days: 14

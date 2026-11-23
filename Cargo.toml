@@ -25,7 +25,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.83"
+rust-version = "1.90"
 authors = ["BlockSmith contributors"]
 publish = false
 license = "PolyForm-Noncommercial-1.0.0"
