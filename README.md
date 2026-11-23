@@ -8,9 +8,13 @@ Estado actual: **F5 completada** — además de analizar, reparar en una imagen 
 salud de los discos (F4), BlockSmith puede **reparar en el propio origen** (imagen o disco) de forma
 transaccional, con copia de deshacer, y recuperar transacciones interrumpidas.
 
+[![CI](https://github.com/JoaquinHervasFarru/BlockSmith/actions/workflows/ci.yml/badge.svg)](https://github.com/JoaquinHervasFarru/BlockSmith/actions/workflows/ci.yml)
+[![HFS+ en macOS](https://github.com/JoaquinHervasFarru/BlockSmith/actions/workflows/macos-hfs.yml/badge.svg)](https://github.com/JoaquinHervasFarru/BlockSmith/actions/workflows/macos-hfs.yml)
+[![Licencia: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/licencia-PolyForm%20Noncommercial%201.0.0-blue)](LICENSE)
+
 ## Requisitos
 
-- Rust ≥ 1.80 y Node.js ≥ 20
+- Rust ≥ 1.83 y Node.js ≥ 20
 - Linux: `libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev libssl-dev`
 - macOS: Xcode Command Line Tools · Windows: WebView2 + MSVC Build Tools
 
@@ -139,3 +143,17 @@ los discos reales por lecturas definidas en ese archivo.
 5 capas de cifrado, sesiones, hallazgos, reconstrucciones, diff, una transacción interrumpida,
 30 días de S.M.A.R.T., alertas, informes y medios de arranque. La UI los usa automáticamente
 fuera de Tauri. Dentro de Tauri se fuerzan con `VITE_USE_MOCKS=true`.
+
+## Licencia
+
+BlockSmith se publica bajo la [PolyForm Noncommercial License 1.0.0](LICENSE).
+
+- **Uso no comercial libre**: uso personal, estudio, investigación, organizaciones sin ánimo de
+  lucro, centros educativos y organismos públicos pueden usarlo, modificarlo y compartirlo.
+  Las copias deben incluir la licencia y la línea `Required Notice:` de [`NOTICE`](NOTICE).
+- **Uso comercial** (venderlo, incluirlo en un producto o servicio de pago, usarlo para dar
+  servicio a clientes…): requiere una licencia comercial aparte, con reconocimiento de autoría y
+  remuneración acordados. Ver [`COMMERCIAL.md`](COMMERCIAL.md).
+- Contribuciones: ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- Componentes de terceros: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), generado y
+  comprobado en la CI con `python3 scripts/licenses.py --check`.

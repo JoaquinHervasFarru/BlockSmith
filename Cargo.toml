@@ -28,6 +28,8 @@ edition = "2021"
 rust-version = "1.83"
 authors = ["BlockSmith contributors"]
 publish = false
+license = "PolyForm-Noncommercial-1.0.0"
+repository = "https://github.com/JoaquinHervasFarru/BlockSmith"
 
 [workspace.lints.rust]
 unsafe_op_in_unsafe_fn = "deny"
