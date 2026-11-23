@@ -32,7 +32,12 @@ pub struct CollectReport {
 }
 
 /// Ejecuta una pasada y registra su estado. `by` identifica quién la lanza ("app" o "agente").
-pub fn collect(backend: &dyn HealthBackend, db: &Database, by: &str, cancelled: &dyn Fn() -> bool) -> Result<CollectReport> {
+pub fn collect(
+    backend: &dyn HealthBackend,
+    db: &Database,
+    by: &str,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<CollectReport> {
     let mut report = CollectReport::default();
     let devices = match backend.devices() {
         Ok(d) => d,
@@ -79,7 +84,14 @@ pub fn collect(backend: &dyn HealthBackend, db: &Database, by: &str, cancelled: 
 }
 
 fn save_status(db: &Database, by: &str, backend: &str, r: &CollectReport) -> Result<()> {
-    let status = PollStatus { at: now(), by: by.into(), backend: backend.into(), disks: r.disks, read: r.read, error: r.error.clone() };
+    let status = PollStatus {
+        at: now(),
+        by: by.into(),
+        backend: backend.into(),
+        disks: r.disks,
+        read: r.read,
+        error: r.error.clone(),
+    };
     db.set_setting(POLL_KEY, &serde_json::to_string(&status).unwrap_or_default())
 }
 
@@ -95,28 +107,72 @@ mod tests {
 
     fn dev(path: &str, serial: Option<&str>) -> DeviceInfo {
         DeviceInfo {
-            path: path.into(), model: Some(format!("Disco {path}")), serial: serial.map(Into::into), firmware: None,
-            bus: Bus::Sata, capacity_bytes: 4_000_000_000_000, removable: false, rotational: Some(true), is_boot_disk: false,
+            path: path.into(),
+            model: Some(format!("Disco {path}")),
+            serial: serial.map(Into::into),
+            firmware: None,
+            bus: Bus::Sata,
+            capacity_bytes: 4_000_000_000_000,
+            removable: false,
+            rotational: Some(true),
+            is_boot_disk: false,
         }
     }
 
     fn reading(realloc: u64, pending: u64) -> ReadOutcome {
         let attrs = vec![
-            Attribute { id: 5, name: ata::attribute_name(5).into(), flags: 0, value: 199, worst: 199, threshold: 140, raw: realloc },
-            Attribute { id: 9, name: ata::attribute_name(9).into(), flags: 0, value: 57, worst: 57, threshold: 0, raw: 31_870 },
-            Attribute { id: 197, name: ata::attribute_name(197).into(), flags: 0, value: 200, worst: 200, threshold: 0, raw: pending },
+            Attribute {
+                id: 5,
+                name: ata::attribute_name(5).into(),
+                flags: 0,
+                value: 199,
+                worst: 199,
+                threshold: 140,
+                raw: realloc,
+            },
+            Attribute {
+                id: 9,
+                name: ata::attribute_name(9).into(),
+                flags: 0,
+                value: 57,
+                worst: 57,
+                threshold: 0,
+                raw: 31_870,
+            },
+            Attribute {
+                id: 197,
+                name: ata::attribute_name(197).into(),
+                flags: 0,
+                value: 200,
+                worst: 200,
+                threshold: 0,
+                raw: pending,
+            },
         ];
         ReadOutcome::Read(HealthSnapshot {
-            protocol: Protocol::Ata, overall: Overall::Unknown, temperature_c: Some(41), power_on_hours: Some(31_870),
-            percentage_used: None, attributes: attrs, nvme: None, source: String::new(), reasons: vec![],
+            protocol: Protocol::Ata,
+            overall: Overall::Unknown,
+            temperature_c: Some(41),
+            power_on_hours: Some(31_870),
+            percentage_used: None,
+            attributes: attrs,
+            nvme: None,
+            source: String::new(),
+            reasons: vec![],
         })
     }
 
     fn backend() -> Replay {
         Replay::new(ReplayFile {
             devices: vec![
-                ReplayDevice { info: dev("/dev/sda", Some("WX42")), sequence: vec![reading(0, 0), reading(8, 0), reading(24, 3), reading(24, 3)] },
-                ReplayDevice { info: dev("/dev/sdc", None), sequence: vec![ReadOutcome::Unsupported("puente USB".into())] },
+                ReplayDevice {
+                    info: dev("/dev/sda", Some("WX42")),
+                    sequence: vec![reading(0, 0), reading(8, 0), reading(24, 3), reading(24, 3)],
+                },
+                ReplayDevice {
+                    info: dev("/dev/sdc", None),
+                    sequence: vec![ReadOutcome::Unsupported("puente USB".into())],
+                },
             ],
         })
     }

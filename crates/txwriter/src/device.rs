@@ -35,7 +35,9 @@ impl FileTarget {
     /// dispositivo o alguna partición está montada o en uso).
     pub fn open(path: &Path) -> io::Result<Self> {
         let meta = std::fs::metadata(path)?;
-        let kind = kind_of(&meta).ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "solo se puede escribir en imágenes o dispositivos de bloque"))?;
+        let kind = kind_of(&meta).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "solo se puede escribir en imágenes o dispositivos de bloque")
+        })?;
         let mut opts = OpenOptions::new();
         opts.read(true).write(true);
         #[cfg(target_os = "linux")]
@@ -45,11 +47,17 @@ impl FileTarget {
         }
         #[cfg(windows)]
         if kind == TargetKind::BlockDevice {
-            return Err(io::Error::new(io::ErrorKind::Unsupported, "la escritura directa en dispositivos aún no está disponible en Windows"));
+            return Err(io::Error::new(
+                io::ErrorKind::Unsupported,
+                "la escritura directa en dispositivos aún no está disponible en Windows",
+            ));
         }
         let mut file = opts.open(path).map_err(|e| match e.raw_os_error() {
             #[cfg(unix)]
-            Some(libc::EBUSY) => io::Error::new(io::ErrorKind::ResourceBusy, "el dispositivo está en uso o montado; desmóntalo antes de reparar"),
+            Some(libc::EBUSY) => io::Error::new(
+                io::ErrorKind::ResourceBusy,
+                "el dispositivo está en uso o montado; desmóntalo antes de reparar",
+            ),
             _ => e,
         })?;
         #[cfg(unix)]
@@ -187,6 +195,8 @@ pub fn assess_with(path: &Path, sysfs: &Path, mountinfo: Option<&str>) -> Assess
         is_boot: false,
         loop_device: None,
     };
+    #[cfg(not(unix))]
+    let _ = (sysfs, mountinfo);
     #[cfg(unix)]
     if let (Ok(meta), Some(info)) = (&meta, mountinfo) {
         let mounts = parse_mountinfo(info);
@@ -277,7 +287,8 @@ mod tests {
         #[cfg(unix)]
         {
             std::os::unix::fs::symlink(root.path().join("devices/sdb"), root.path().join("dev/block/8:16")).unwrap();
-            std::os::unix::fs::symlink(root.path().join("devices/sdb/sdb2"), root.path().join("dev/block/8:18")).unwrap();
+            std::os::unix::fs::symlink(root.path().join("devices/sdb/sdb2"), root.path().join("dev/block/8:18"))
+                .unwrap();
         }
         root
     }

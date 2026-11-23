@@ -76,7 +76,12 @@ fn sync_parent(path: &Path) {
 
 /// Lee los originales, escribe el registro de deshacer completo y lo sincroniza.
 /// El destino no se modifica. Las escrituras se ordenan por fase (orden estable).
-pub fn prepare(target: &dyn Target, mut writes: Vec<PlannedWrite>, undo_path: &Path, mut meta: TxMeta) -> TxResult<Transaction> {
+pub fn prepare(
+    target: &dyn Target,
+    mut writes: Vec<PlannedWrite>,
+    undo_path: &Path,
+    mut meta: TxMeta,
+) -> TxResult<Transaction> {
     if target.len() != meta.target_len {
         return Err(TxError::WrongTarget(format!("tamaño {} y se esperaba {}", target.len(), meta.target_len)));
     }
@@ -177,15 +182,26 @@ mod tests {
 
     fn meta(len: u64) -> TxMeta {
         TxMeta {
-            target: "memoria".into(), target_len: len, base_offset: 0, volume_len: len, created_at: "2026-01-01T00:00:00Z".into(),
-            plan_sha256: "x".into(), label: "prueba".into(), first_commit: None,
+            target: "memoria".into(),
+            target_len: len,
+            base_offset: 0,
+            volume_len: len,
+            created_at: "2026-01-01T00:00:00Z".into(),
+            plan_sha256: "x".into(),
+            label: "prueba".into(),
+            first_commit: None,
         }
     }
 
     fn writes() -> Vec<PlannedWrite> {
         let w = |offset, byte, phase| PlannedWrite { offset, data: vec![byte; 1024], phase, label: format!("{byte}") };
         // Incluye dos escrituras solapadas en el mismo rango (como el bitmap de transición y el final).
-        vec![w(512, 0xA1, WritePhase::Data), w(6144, 0xC1, WritePhase::Commit), w(3072, 0xA2, WritePhase::Data), w(3072, 0xF1, WritePhase::Finalize)]
+        vec![
+            w(512, 0xA1, WritePhase::Data),
+            w(6144, 0xC1, WritePhase::Commit),
+            w(3072, 0xA2, WritePhase::Data),
+            w(3072, 0xF1, WritePhase::Finalize),
+        ]
     }
 
     fn original() -> Vec<u8> {
@@ -195,7 +211,11 @@ mod tests {
     struct CrashAt(u32, Control);
     impl Observer for CrashAt {
         fn before_write(&mut self, seq: u32, _: WritePhase) -> Control {
-            if seq == self.0 { self.1 } else { Control::Continue }
+            if seq == self.0 {
+                self.1
+            } else {
+                Control::Continue
+            }
         }
     }
 

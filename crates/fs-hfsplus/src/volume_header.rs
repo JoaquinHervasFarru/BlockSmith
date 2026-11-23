@@ -136,11 +136,23 @@ impl VolumeHeader {
         b[0..2].copy_from_slice(&self.signature);
         put_be_u16(&mut b, 2, self.version);
         for (off, v) in [
-            (4, self.attributes), (8, self.last_mounted_version), (12, self.journal_info_block),
-            (16, self.create_date), (20, self.modify_date), (24, self.backup_date), (28, self.checked_date),
-            (32, self.file_count), (36, self.folder_count), (40, self.block_size), (44, self.total_blocks),
-            (48, self.free_blocks), (52, self.next_allocation), (56, self.rsrc_clump_size),
-            (60, self.data_clump_size), (64, self.next_catalog_id), (68, self.write_count),
+            (4, self.attributes),
+            (8, self.last_mounted_version),
+            (12, self.journal_info_block),
+            (16, self.create_date),
+            (20, self.modify_date),
+            (24, self.backup_date),
+            (28, self.checked_date),
+            (32, self.file_count),
+            (36, self.folder_count),
+            (40, self.block_size),
+            (44, self.total_blocks),
+            (48, self.free_blocks),
+            (52, self.next_allocation),
+            (56, self.rsrc_clump_size),
+            (60, self.data_clump_size),
+            (64, self.next_catalog_id),
+            (68, self.write_count),
         ] {
             put_be_u32(&mut b, off, v);
         }

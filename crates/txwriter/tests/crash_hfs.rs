@@ -12,7 +12,9 @@ use blocksmith_fs_hfsplus::fixtures::{apply_damage, build_volume, sample_tree, B
 use blocksmith_fs_hfsplus::rebuild::plan_rebuild;
 use blocksmith_fs_hfsplus::{scan_volume, Volume};
 use blocksmith_io::MemoryDevice;
-use blocksmith_txwriter::{apply, prepare, roll_forward, rollback, Control, MemTarget, Observer, PlannedWrite, TxError, TxMeta};
+use blocksmith_txwriter::{
+    apply, prepare, roll_forward, rollback, Control, MemTarget, Observer, PlannedWrite, TxError, TxMeta,
+};
 
 struct Quiet;
 impl Progress for Quiet {
@@ -26,7 +28,11 @@ impl Progress for Quiet {
 struct CrashAt(u32, Control);
 impl Observer for CrashAt {
     fn before_write(&mut self, seq: u32, _: WritePhase) -> Control {
-        if seq == self.0 { self.1 } else { Control::Continue }
+        if seq == self.0 {
+            self.1
+        } else {
+            Control::Continue
+        }
     }
 }
 
@@ -55,9 +61,13 @@ const BENIGN: &[&str] = &["HFS_BITMAP_LEAK", "HFS_FREE_COUNT"];
 
 #[test]
 fn interruption_at_every_write_is_safe() {
-    let base = build_volume(&BuildOptions { max_records_per_leaf: Some(6), ..Default::default() }, &sample_tree()).unwrap();
-    let cases: [(&str, Option<Damage>); 3] =
-        [("sano", None), ("huérfanos", Some(Damage::FolderAndThreadLost)), ("bloques compartidos", Some(Damage::ExtentOverlap))];
+    let base =
+        build_volume(&BuildOptions { max_records_per_leaf: Some(6), ..Default::default() }, &sample_tree()).unwrap();
+    let cases: [(&str, Option<Damage>); 3] = [
+        ("sano", None),
+        ("huérfanos", Some(Damage::FolderAndThreadLost)),
+        ("bloques compartidos", Some(Damage::ExtentOverlap)),
+    ];
     let mut checked = 0;
     for (name, damage) in cases {
         let mut orig = base.clone();
@@ -75,8 +85,14 @@ fn interruption_at_every_write_is_safe() {
         // La cabecera principal es la primera escritura de commit: hasta escribirla, manda la versión vieja.
         let first_commit = writes.iter().position(|w| w.phase == WritePhase::Commit).unwrap() as u32;
         let meta = TxMeta {
-            target: name.into(), target_len: orig.len() as u64, base_offset: 0, volume_len: orig.len() as u64,
-            created_at: String::new(), plan_sha256: String::new(), label: name.into(), first_commit: None,
+            target: name.into(),
+            target_len: orig.len() as u64,
+            base_offset: 0,
+            volume_len: orig.len() as u64,
+            created_at: String::new(),
+            plan_sha256: String::new(),
+            label: name.into(),
+            first_commit: None,
         };
         let dir = tempfile::tempdir().unwrap();
 
@@ -94,7 +110,10 @@ fn interruption_at_every_write_is_safe() {
                 let mut tx = prepare(&t, writes.clone(), &undo, meta.clone()).unwrap();
                 assert!(matches!(apply(&mut tx, &mut t, &mut CrashAt(seq, mode)), Err(TxError::Interrupted { .. })));
                 let (codes, files) = health(&t.0);
-                let what = format!("{name}: corte {mode:?} antes de completar la escritura {seq} ({})", writes[seq as usize].label);
+                let what = format!(
+                    "{name}: corte {mode:?} antes de completar la escritura {seq} ({})",
+                    writes[seq as usize].label
+                );
                 if seq <= first_commit {
                     // La cabecera nueva no está completa: versión vieja, sin daños nuevos.
                     let new: Vec<_> = codes.difference(&orig_codes).filter(|c| !BENIGN.contains(&c.as_str())).collect();

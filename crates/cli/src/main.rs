@@ -4,14 +4,14 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::{bail, Context};
-use clap::{Parser, Subcommand};
 use blocksmith_fs_core::{Progress, Severity};
+use blocksmith_fs_hfsplus::rebuild::plan_rebuild;
 use blocksmith_fs_hfsplus::{scan_volume, Volume};
 use blocksmith_io::{open_image, BlockDevice, Slice};
-use blocksmith_fs_hfsplus::rebuild::plan_rebuild;
 use blocksmith_partition::{detect, Hint, Scheme};
 use blocksmith_rebuilder::summary::change_label;
 use blocksmith_rebuilder::{export_image, summarize};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "blocksmith-cli", version, about = "Motor de BlockSmith desde la terminal (solo lectura)")]
@@ -166,8 +166,13 @@ fn main() -> anyhow::Result<()> {
             println!("  {} archivos · {} carpetas · catálogo de {} nodos ({} dañados) · {:.1} % de espacio sin usar en hojas",
                 s.files, s.folders, s.nodes_total, s.nodes_damaged, s.fragmentation_pct);
             let count = |sev| r.findings.iter().filter(|f| f.severity == sev).count();
-            println!("  Hallazgos: {} críticos · {} menores · {} cosméticos  ({:.2} s)",
-                count(Severity::Critical), count(Severity::Minor), count(Severity::Cosmetic), t0.elapsed().as_secs_f32());
+            println!(
+                "  Hallazgos: {} críticos · {} menores · {} cosméticos  ({:.2} s)",
+                count(Severity::Critical),
+                count(Severity::Minor),
+                count(Severity::Cosmetic),
+                t0.elapsed().as_secs_f32()
+            );
             for f in &r.findings {
                 let sev = match f.severity {
                     Severity::Critical => "CRÍTICO ",
@@ -203,12 +208,22 @@ fn main() -> anyhow::Result<()> {
             let plan = plan_rebuild(&vol, &scan)?;
             let sum = summarize(&plan);
             println!();
-            println!("Directorio: {} nodos → {} nodos{}", sum.nodes_before, sum.nodes_after,
+            println!(
+                "Directorio: {} nodos → {} nodos{}",
+                sum.nodes_before,
+                sum.nodes_after,
                 if sum.nodes_after < sum.nodes_before {
                     format!(" ({:.0} % más compacto)", 100.0 * (1.0 - sum.nodes_after as f64 / sum.nodes_before as f64))
-                } else { String::new() });
-            println!("Problemas antes: {before} · recuperados: {} · perdidos: {} · escritura: {}",
-                sum.recovered, sum.lost, human(sum.bytes_to_write));
+                } else {
+                    String::new()
+                }
+            );
+            println!(
+                "Problemas antes: {before} · recuperados: {} · perdidos: {} · escritura: {}",
+                sum.recovered,
+                sum.lost,
+                human(sum.bytes_to_write)
+            );
             for (k, v) in &sum.by_change {
                 println!("  {k}: {v}");
             }
@@ -229,18 +244,26 @@ fn main() -> anyhow::Result<()> {
             }
             let out = out.expect("comprobado arriba");
             let report = export_image(dev.as_ref(), start, len, &plan, &out, &mut progress)?;
-            println!("\nImagen reparada: {} ({} de datos copiados, {} escrituras, {})",
-                out.display(), human(report.bytes_copied), report.writes_applied, human(report.bytes_written));
+            println!(
+                "\nImagen reparada: {} ({} de datos copiados, {} escrituras, {})",
+                out.display(),
+                human(report.bytes_copied),
+                report.writes_applied,
+                human(report.bytes_written)
+            );
 
             // Verificación independiente de la imagen nueva.
             let fixed = open_image(&out)?;
             let fslice = Slice::new(fixed.as_ref(), start, len)?;
             let fvol = Volume::open(&fslice)?.context("la imagen nueva no contiene un volumen HFS+")?;
             let verify = scan_volume(&fvol, &mut CliProgress { quiet: true })?;
-            let remaining: Vec<_> = verify.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).collect();
+            let remaining: Vec<_> =
+                verify.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).collect();
             if remaining.is_empty() {
-                println!("Verificación: ✓ la imagen reparada no tiene problemas ({} archivos, {} carpetas).",
-                    verify.result.stats.files, verify.result.stats.folders);
+                println!(
+                    "Verificación: ✓ la imagen reparada no tiene problemas ({} archivos, {} carpetas).",
+                    verify.result.stats.files, verify.result.stats.folders
+                );
             } else {
                 println!("Verificación: ✗ quedan {} problemas:", remaining.len());
                 for f in remaining {

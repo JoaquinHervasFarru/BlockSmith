@@ -13,7 +13,17 @@ const MAX_ENTRIES: u32 = 1024;
 pub fn guid_to_string(b: &[u8]) -> String {
     format!(
         "{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
-        le_u32(b, 0), le_u16(b, 4), le_u16(b, 6), b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]
+        le_u32(b, 0),
+        le_u16(b, 4),
+        le_u16(b, 6),
+        b[8],
+        b[9],
+        b[10],
+        b[11],
+        b[12],
+        b[13],
+        b[14],
+        b[15]
     )
 }
 
@@ -106,8 +116,7 @@ pub fn read(dev: &dyn BlockDevice) -> IoResult<Option<PartitionTable>> {
                 warnings.push(format!("Entrada GPT {} con LBA final anterior al inicial", i + 1));
                 continue;
             }
-            let name_units: Vec<u16> =
-                (0..36).map(|k| le_u16(e, 56 + k * 2)).take_while(|&c| c != 0).collect();
+            let name_units: Vec<u16> = (0..36).map(|k| le_u16(e, 56 + k * 2)).take_while(|&c| c != 0).collect();
             partitions.push(Partition {
                 index: i as u32 + 1,
                 start: first * sector,

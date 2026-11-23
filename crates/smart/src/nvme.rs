@@ -61,8 +61,13 @@ pub fn build_log(h: &NvmeHealth) -> Vec<u8> {
     b[4] = h.spare_threshold;
     b[5] = h.percentage_used;
     for (off, v) in [
-        (32, h.data_units_read), (48, h.data_units_written), (112, h.power_cycles), (128, h.power_on_hours),
-        (144, h.unsafe_shutdowns), (160, h.media_errors), (176, h.error_log_entries),
+        (32, h.data_units_read),
+        (48, h.data_units_written),
+        (112, h.power_cycles),
+        (128, h.power_on_hours),
+        (144, h.unsafe_shutdowns),
+        (160, h.media_errors),
+        (176, h.error_log_entries),
     ] {
         b[off..off + 8].copy_from_slice(&v.to_le_bytes());
     }
@@ -76,9 +81,18 @@ mod tests {
     #[test]
     fn roundtrip_and_fields() {
         let h = NvmeHealth {
-            critical_warning: 0b10, temperature_k: 311, available_spare: 100, spare_threshold: 10, percentage_used: 4,
-            data_units_read: 9_000_000, data_units_written: 12_345_678, power_cycles: 1_204, power_on_hours: 6_120,
-            unsafe_shutdowns: 31, media_errors: 0, error_log_entries: 2,
+            critical_warning: 0b10,
+            temperature_k: 311,
+            available_spare: 100,
+            spare_threshold: 10,
+            percentage_used: 4,
+            data_units_read: 9_000_000,
+            data_units_written: 12_345_678,
+            power_cycles: 1_204,
+            power_on_hours: 6_120,
+            unsafe_shutdowns: 31,
+            media_errors: 0,
+            error_log_entries: 2,
         };
         let log = build_log(&h);
         // Offsets fijos de la especificación.

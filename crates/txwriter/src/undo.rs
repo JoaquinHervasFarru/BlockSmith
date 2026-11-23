@@ -206,7 +206,8 @@ impl UndoFile {
         if u32_at(&h, 16) != VERSION {
             return Err(TxError::BadUndo(format!("versión {} no compatible", u32_at(&h, 16))));
         }
-        let state = TxState::from_u32(u32_at(&h, 20)).ok_or_else(|| TxError::BadUndo("estado desconocido (preparación incompleta)".into()))?;
+        let state = TxState::from_u32(u32_at(&h, 20))
+            .ok_or_else(|| TxError::BadUndo("estado desconocido (preparación incompleta)".into()))?;
         let json_len = u32_at(&h, 32) as usize;
         let json = h.get(68..68 + json_len).ok_or_else(|| TxError::BadUndo("metadatos truncados".into()))?;
         if sha(json) != h[36..68] {
@@ -223,7 +224,8 @@ impl UndoFile {
                 return Err(TxError::BadUndo(format!("registro {seq} dañado")));
             }
             let len = u32_at(&rh, 16);
-            let phase = phase_from(rh[20]).ok_or_else(|| TxError::BadUndo(format!("fase desconocida en el registro {seq}")))?;
+            let phase =
+                phase_from(rh[20]).ok_or_else(|| TxError::BadUndo(format!("fase desconocida en el registro {seq}")))?;
             records.push(RecordPos {
                 seq,
                 log_offset: pos,
@@ -308,7 +310,11 @@ pub fn inspect(path: &Path) -> TxResult<UndoInfo> {
     u.check_integrity()?;
     Ok(UndoInfo {
         bytes_saved: u.records.iter().map(|r| r.len as u64).sum(),
-        records: u.records.iter().map(|r| UndoRecordInfo { seq: r.seq, offset: r.offset, len: r.len, phase: r.phase }).collect(),
+        records: u
+            .records
+            .iter()
+            .map(|r| UndoRecordInfo { seq: r.seq, offset: r.offset, len: r.len, phase: r.phase })
+            .collect(),
         meta: u.meta,
         state: u.state,
         written: u.written,

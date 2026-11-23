@@ -13,7 +13,13 @@ pub struct ForkReader<'a> {
 }
 
 impl<'a> ForkReader<'a> {
-    pub fn new(dev: &'a dyn BlockDevice, vol_offset: u64, block_size: u32, extents: Vec<Extent>, logical_size: u64) -> Self {
+    pub fn new(
+        dev: &'a dyn BlockDevice,
+        vol_offset: u64,
+        block_size: u32,
+        extents: Vec<Extent>,
+        logical_size: u64,
+    ) -> Self {
         let extents = extents.into_iter().filter(|e| e.block_count > 0).collect();
         Self { dev, vol_offset, block_size: block_size as u64, extents, logical_size }
     }
@@ -47,9 +53,7 @@ impl<'a> ForkReader<'a> {
             ext_start += ext_len;
         }
         if done < buf.len() {
-            return Err(IoError::Corrupt(format!(
-                "el fork no tiene extents para el offset lógico {logical}"
-            )));
+            return Err(IoError::Corrupt(format!("el fork no tiene extents para el offset lógico {logical}")));
         }
         Ok(())
     }

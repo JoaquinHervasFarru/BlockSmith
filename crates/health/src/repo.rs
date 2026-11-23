@@ -89,7 +89,8 @@ fn bus_str(b: Bus) -> &'static str {
 pub fn upsert_disk(conn: &Connection, d: &DeviceInfo) -> Result<i64> {
     let key = d.stable_key();
     let ts = now();
-    let existing: Option<i64> = conn.query_row("SELECT id FROM disks WHERE device_key = ?1", [&key], |r| r.get(0)).optional()?;
+    let existing: Option<i64> =
+        conn.query_row("SELECT id FROM disks WHERE device_key = ?1", [&key], |r| r.get(0)).optional()?;
     match existing {
         Some(id) => {
             conn.execute(
@@ -181,7 +182,8 @@ fn snapshot_from_row(conn: &Connection, r: &Row<'_>) -> Result<StoredSnapshot> {
 const SNAP_COLS: &str = "id, disk_id, taken_at, overall, temperature_c, power_on_hours, percentage_used, raw_json";
 
 pub fn latest(conn: &Connection, disk_id: i64) -> Result<Option<StoredSnapshot>> {
-    let mut st = conn.prepare(&format!("SELECT {SNAP_COLS} FROM smart_snapshots WHERE disk_id = ?1 ORDER BY id DESC LIMIT 1"))?;
+    let mut st =
+        conn.prepare(&format!("SELECT {SNAP_COLS} FROM smart_snapshots WHERE disk_id = ?1 ORDER BY id DESC LIMIT 1"))?;
     let mut rows = st.query([disk_id])?;
     match rows.next()? {
         Some(r) => Ok(Some(snapshot_from_row(conn, r)?)),
@@ -243,7 +245,8 @@ fn disk_from_row(r: &Row<'_>) -> Result<DiskRow> {
     })
 }
 
-const DISK_SELECT: &str = "SELECT d.id, d.path, d.model, d.serial, d.firmware, d.bus, d.capacity_bytes, d.is_boot_disk, d.removable,
+const DISK_SELECT: &str =
+    "SELECT d.id, d.path, d.model, d.serial, d.firmware, d.bus, d.capacity_bytes, d.is_boot_disk, d.removable,
     d.rotational, d.read_status, d.read_note, d.first_seen, d.last_seen,
     (SELECT COUNT(*) FROM alerts a WHERE a.disk_id = d.id AND a.acknowledged_at IS NULL) FROM disks d";
 
@@ -275,7 +278,10 @@ pub fn raise(conn: &Connection, disk_id: i64, c: &AlertCandidate) -> Result<Opti
         .optional()?;
     match open {
         Some(id) => {
-            conn.execute("UPDATE alerts SET message = ?1, severity = ?2 WHERE id = ?3", params![c.message, c.severity, id])?;
+            conn.execute(
+                "UPDATE alerts SET message = ?1, severity = ?2 WHERE id = ?3",
+                params![c.message, c.severity, id],
+            )?;
             Ok(None)
         }
         None => {
@@ -316,7 +322,10 @@ pub fn alerts(conn: &Connection, open_only: bool, disk_id: Option<i64>) -> Resul
 }
 
 pub fn acknowledge(conn: &Connection, id: i64) -> Result<bool> {
-    Ok(conn.execute("UPDATE alerts SET acknowledged_at = ?1 WHERE id = ?2 AND acknowledged_at IS NULL", params![now(), id])? > 0)
+    Ok(conn.execute(
+        "UPDATE alerts SET acknowledged_at = ?1 WHERE id = ?2 AND acknowledged_at IS NULL",
+        params![now(), id],
+    )? > 0)
 }
 
 pub fn rules(conn: &Connection) -> Result<Vec<Rule>> {

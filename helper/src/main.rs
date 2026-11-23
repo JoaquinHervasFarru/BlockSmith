@@ -15,7 +15,10 @@ use blocksmith_fs_hfsplus::{scan_volume, Volume};
 use blocksmith_helper::{sha256_hex, HelperEvent, Job};
 use blocksmith_io::{open_image, Slice};
 use blocksmith_txwriter::device::{assess, undo_on_target_device};
-use blocksmith_txwriter::{apply, inspect, mark_verified, prepare, roll_forward, rollback, Control, FileTarget, Observer, PlannedWrite, TxError, TxMeta};
+use blocksmith_txwriter::{
+    apply, inspect, mark_verified, prepare, roll_forward, rollback, Control, FileTarget, Observer, PlannedWrite,
+    TxError, TxMeta,
+};
 use clap::{Parser, Subcommand};
 
 static STOP: AtomicBool = AtomicBool::new(false);
@@ -101,7 +104,11 @@ impl Observer for Obs {
         if self.fail_at == Some(seq) {
             return Control::Crash;
         }
-        if STOP.load(Ordering::SeqCst) { Control::Stop } else { Control::Continue }
+        if STOP.load(Ordering::SeqCst) {
+            Control::Stop
+        } else {
+            Control::Continue
+        }
     }
     fn progress(&mut self, done: u32, total: u32, _: &str) {
         emit(&HelperEvent::Progress { done, total });
@@ -150,7 +157,8 @@ fn verify_volume(target: &Path, base: u64, len: u64) -> anyhow::Result<(bool, Ve
     let slice = Slice::new(dev.as_ref(), base, len)?;
     let vol = Volume::open(&slice)?.context("el destino ya no contiene un volumen HFS+")?;
     let scan = scan_volume(&vol, &mut Quiet)?;
-    let codes: Vec<String> = scan.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).map(|f| f.code.clone()).collect();
+    let codes: Vec<String> =
+        scan.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).map(|f| f.code.clone()).collect();
     Ok((codes.is_empty(), codes))
 }
 
@@ -167,7 +175,8 @@ fn run_apply(target: &Path, job_path: &Path, job_sha: &str, undo: &Path) -> anyh
     safety(target, undo)?;
 
     emit(&HelperEvent::Phase { name: "Guardando la copia de deshacer".into() });
-    let mut dest = FileTarget::open(target).with_context(|| format!("no se pudo abrir {} para escribir", target.display()))?;
+    let mut dest =
+        FileTarget::open(target).with_context(|| format!("no se pudo abrir {} para escribir", target.display()))?;
     let planned = writes
         .into_iter()
         .map(|(offset, phase, label, data)| PlannedWrite { offset: job.base_offset + offset, data, phase, label })
@@ -236,10 +245,16 @@ fn main() {
             if ok {
                 mark_verified(&undo)?;
             }
-            emit(&HelperEvent::Done { state: if ok { "verified" } else { "finalized" }.into(), verified: ok, findings });
+            emit(&HelperEvent::Done {
+                state: if ok { "verified" } else { "finalized" }.into(),
+                verified: ok,
+                findings,
+            });
             Ok(())
         })(),
-        Cmd::Inspect { undo } => inspect(&undo).map(|i| println!("{}", serde_json::to_string(&i).unwrap_or_default())).map_err(Into::into),
+        Cmd::Inspect { undo } => {
+            inspect(&undo).map(|i| println!("{}", serde_json::to_string(&i).unwrap_or_default())).map_err(Into::into)
+        }
         Cmd::Check { target } => {
             println!("{}", serde_json::to_string(&assess(&target)).unwrap_or_default());
             Ok(())

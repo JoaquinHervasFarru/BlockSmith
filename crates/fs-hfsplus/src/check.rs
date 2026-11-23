@@ -59,10 +59,8 @@ impl CatalogSnapshot {
     /// Árbol plano (carpetas y archivos) para las vistas de comparación.
     pub fn entries(&self) -> Vec<blocksmith_fs_core::TreeEntry> {
         let folders = self.folders.iter().map(|(id, (k, _))| (id, k, true, 0u64));
-        let files = self
-            .files
-            .iter()
-            .map(|(id, (k, r))| (id, k, false, r.data_fork.logical_size + r.rsrc_fork.logical_size));
+        let files =
+            self.files.iter().map(|(id, (k, r))| (id, k, false, r.data_fork.logical_size + r.rsrc_fork.logical_size));
         folders
             .chain(files)
             .map(|(id, k, is_folder, size_bytes)| blocksmith_fs_core::TreeEntry {
@@ -172,7 +170,11 @@ type RawRecord = (Vec<u8>, Vec<u8>, u32, bool);
 type KeyCmp<'c> = &'c dyn Fn(&[u8], &[u8]) -> Ordering;
 
 fn check_cancel(progress: &dyn Progress) -> FsResult<()> {
-    if progress.is_cancelled() { Err(FsError::Cancelled) } else { Ok(()) }
+    if progress.is_cancelled() {
+        Err(FsError::Cancelled)
+    } else {
+        Ok(())
+    }
 }
 
 fn scan_tree(
@@ -193,15 +195,33 @@ fn scan_tree(
         d
     };
     for w in &tree.map_warnings {
-        f.push("HFS_BTREE_MAP", Severity::Minor, ObjectType::Node, None, None, None,
-            format!("Árbol {name}: {w}"), tree_details(json!({})));
+        f.push(
+            "HFS_BTREE_MAP",
+            Severity::Minor,
+            ObjectType::Node,
+            None,
+            None,
+            None,
+            format!("Árbol {name}: {w}"),
+            tree_details(json!({})),
+        );
     }
 
     if h.total_nodes as u64 * ns > tree.reader.logical_size() {
-        f.push("HFS_BTREE_HEADER", Severity::Critical, ObjectType::Header, None, Some(0), None,
-            format!("Árbol {name}: la cabecera declara {} nodos y el archivo solo tiene espacio para {}",
-                h.total_nodes, tree.reader.logical_size() / ns),
-            tree_details(json!({})));
+        f.push(
+            "HFS_BTREE_HEADER",
+            Severity::Critical,
+            ObjectType::Header,
+            None,
+            Some(0),
+            None,
+            format!(
+                "Árbol {name}: la cabecera declara {} nodos y el archivo solo tiene espacio para {}",
+                h.total_nodes,
+                tree.reader.logical_size() / ns
+            ),
+            tree_details(json!({})),
+        );
     }
 
     // 1) Leer y validar todos los nodos asignados.
@@ -232,8 +252,16 @@ fn scan_tree(
                     Some(node) => format!("; se rescataron sus {} registros", node.records.len()),
                     None => String::new(),
                 };
-                f.push("HFS_NODE_UNREADABLE", Severity::Critical, ObjectType::Node, None, Some(n), None,
-                    format!("Árbol {name}: nodo {n} ilegible ({e}){extra}"), tree_details(json!({ "rescued": rescued.is_some() })));
+                f.push(
+                    "HFS_NODE_UNREADABLE",
+                    Severity::Critical,
+                    ObjectType::Node,
+                    None,
+                    Some(n),
+                    None,
+                    format!("Árbol {name}: nodo {n} ilegible ({e}){extra}"),
+                    tree_details(json!({ "rescued": rescued.is_some() })),
+                );
                 if let Some(node) = rescued {
                     rescued_nodes.insert(n);
                     nodes.insert(n, node);
@@ -241,17 +269,32 @@ fn scan_tree(
             }
             Err(e) => {
                 out.damaged_nodes += 1;
-                f.push("HFS_NODE_UNREADABLE", Severity::Critical, ObjectType::Node, None, Some(n), None,
-                    format!("Árbol {name}: no se pudo leer el nodo {n} ({e})"), tree_details(json!({})));
+                f.push(
+                    "HFS_NODE_UNREADABLE",
+                    Severity::Critical,
+                    ObjectType::Node,
+                    None,
+                    Some(n),
+                    None,
+                    format!("Árbol {name}: no se pudo leer el nodo {n} ({e})"),
+                    tree_details(json!({})),
+                );
             }
         }
     }
     out.allocated_nodes = allocated as u64;
     let expected_free = h.total_nodes.saturating_sub(allocated);
     if h.free_nodes != expected_free {
-        f.push("HFS_BTREE_FREE_COUNT", Severity::Cosmetic, ObjectType::Header, None, Some(0), None,
+        f.push(
+            "HFS_BTREE_FREE_COUNT",
+            Severity::Cosmetic,
+            ObjectType::Header,
+            None,
+            Some(0),
+            None,
             format!("Árbol {name}: la cabecera indica {} nodos libres y el mapa {expected_free}", h.free_nodes),
-            tree_details(json!({ "header": h.free_nodes, "map": expected_free })));
+            tree_details(json!({ "header": h.free_nodes, "map": expected_free })),
+        );
     }
 
     let key_of = |node: &Node, i: usize| -> Option<Vec<u8>> {
@@ -268,74 +311,142 @@ fn scan_tree(
         let node = nodes.get(&cur).filter(|n| n.desc.kind == kind::LEAF);
         let Some(node) = node else {
             chain_broken = true;
-            f.push("HFS_BTREE_LINK_BROKEN", Severity::Critical, ObjectType::Node, None, Some(prev), None,
+            f.push(
+                "HFS_BTREE_LINK_BROKEN",
+                Severity::Critical,
+                ObjectType::Node,
+                None,
+                Some(prev),
+                None,
                 format!("Árbol {name}: el enlace al siguiente nodo hoja apunta a {cur}, que no es una hoja válida"),
-                tree_details(json!({ "target": cur })));
+                tree_details(json!({ "target": cur })),
+            );
             break;
         };
         if !visited.insert(cur) {
             chain_broken = true;
-            f.push("HFS_BTREE_LINK_BROKEN", Severity::Critical, ObjectType::Node, None, Some(cur), None,
-                format!("Árbol {name}: ciclo en la cadena de nodos hoja (nodo {cur})"), tree_details(json!({})));
+            f.push(
+                "HFS_BTREE_LINK_BROKEN",
+                Severity::Critical,
+                ObjectType::Node,
+                None,
+                Some(cur),
+                None,
+                format!("Árbol {name}: ciclo en la cadena de nodos hoja (nodo {cur})"),
+                tree_details(json!({})),
+            );
             break;
         }
         if node.desc.blink != prev {
-            f.push("HFS_BTREE_BACKLINK", Severity::Minor, ObjectType::Node, None, Some(cur), None,
-                format!("Árbol {name}: el enlace hacia atrás del nodo {cur} es {} y debería ser {prev}", node.desc.blink),
-                tree_details(json!({})));
+            f.push(
+                "HFS_BTREE_BACKLINK",
+                Severity::Minor,
+                ObjectType::Node,
+                None,
+                Some(cur),
+                None,
+                format!(
+                    "Árbol {name}: el enlace hacia atrás del nodo {cur} es {} y debería ser {prev}",
+                    node.desc.blink
+                ),
+                tree_details(json!({})),
+            );
         }
         chain.push(cur);
         prev = cur;
         cur = node.desc.flink;
     }
     if !chain_broken && prev != h.last_leaf_node {
-        f.push("HFS_BTREE_HEADER", Severity::Minor, ObjectType::Header, None, Some(0), None,
+        f.push(
+            "HFS_BTREE_HEADER",
+            Severity::Minor,
+            ObjectType::Header,
+            None,
+            Some(0),
+            None,
             format!("Árbol {name}: el último nodo hoja es {prev} y la cabecera indica {}", h.last_leaf_node),
-            tree_details(json!({})));
+            tree_details(json!({})),
+        );
     }
 
     // 3) Orden de claves a lo largo de la cadena y recogida de registros.
     let mut last_key: Option<Vec<u8>> = None;
     let mut chain_records = 0u32;
-    let take_leaf = |node: &Node, out: &mut TreeScan, f: &mut Findings, check_order: bool, last_key: &mut Option<Vec<u8>>| {
-        out.leaf_nodes += 1;
-        out.leaf_used_bytes += node.used_bytes() as u64;
-        let mut reported = false;
-        for i in 0..node.records.len() {
-            let Some((k, d)) = split_record(node.record(i), false, &h) else {
-                f.push("HFS_RECORD_INVALID", Severity::Critical, ObjectType::Node, None, Some(node.number), None,
-                    format!("Árbol {name}: registro {i} del nodo {} con clave no válida", node.number),
-                    tree_details(json!({ "record": i })));
-                continue;
-            };
-            if check_order {
-                if let Some(prev) = last_key.as_ref() {
-                    if cmp(prev, k) != Ordering::Less && !reported {
-                        reported = true;
-                        f.push("HFS_BTREE_KEY_ORDER", Severity::Critical, ObjectType::Node, None, Some(node.number), None,
-                            format!("Árbol {name}: claves fuera de orden en el nodo hoja {} (registro {i})", node.number),
-                            tree_details(json!({ "record": i })));
+    let take_leaf =
+        |node: &Node, out: &mut TreeScan, f: &mut Findings, check_order: bool, last_key: &mut Option<Vec<u8>>| {
+            out.leaf_nodes += 1;
+            out.leaf_used_bytes += node.used_bytes() as u64;
+            let mut reported = false;
+            for i in 0..node.records.len() {
+                let Some((k, d)) = split_record(node.record(i), false, &h) else {
+                    f.push(
+                        "HFS_RECORD_INVALID",
+                        Severity::Critical,
+                        ObjectType::Node,
+                        None,
+                        Some(node.number),
+                        None,
+                        format!("Árbol {name}: registro {i} del nodo {} con clave no válida", node.number),
+                        tree_details(json!({ "record": i })),
+                    );
+                    continue;
+                };
+                if check_order {
+                    if let Some(prev) = last_key.as_ref() {
+                        if cmp(prev, k) != Ordering::Less && !reported {
+                            reported = true;
+                            f.push(
+                                "HFS_BTREE_KEY_ORDER",
+                                Severity::Critical,
+                                ObjectType::Node,
+                                None,
+                                Some(node.number),
+                                None,
+                                format!(
+                                    "Árbol {name}: claves fuera de orden en el nodo hoja {} (registro {i})",
+                                    node.number
+                                ),
+                                tree_details(json!({ "record": i })),
+                            );
+                        }
                     }
+                    *last_key = Some(k.to_vec());
                 }
-                *last_key = Some(k.to_vec());
+                out.records.push((
+                    k.to_vec(),
+                    d.to_vec(),
+                    node.number,
+                    check_order && !rescued_nodes.contains(&node.number),
+                ));
             }
-            out.records.push((k.to_vec(), d.to_vec(), node.number, check_order && !rescued_nodes.contains(&node.number)));
-        }
-    };
+        };
     for n in &chain {
         let node = &nodes[n];
         chain_records += node.records.len() as u32;
         take_leaf(node, &mut out, f, true, &mut last_key);
     }
     if !chain_broken && chain_records != h.leaf_records {
-        f.push("HFS_LEAF_COUNT", Severity::Minor, ObjectType::Header, None, Some(0), None,
-            format!("Árbol {name}: la cabecera indica {} registros hoja y la cadena contiene {chain_records}", h.leaf_records),
-            tree_details(json!({ "header": h.leaf_records, "found": chain_records })));
+        f.push(
+            "HFS_LEAF_COUNT",
+            Severity::Minor,
+            ObjectType::Header,
+            None,
+            Some(0),
+            None,
+            format!(
+                "Árbol {name}: la cabecera indica {} registros hoja y la cadena contiene {chain_records}",
+                h.leaf_records
+            ),
+            tree_details(json!({ "header": h.leaf_records, "found": chain_records })),
+        );
     }
 
     // 4) Hojas válidas no enlazadas (barrido).
-    let mut unlinked: Vec<u32> =
-        nodes.iter().filter(|(n, node)| node.desc.kind == kind::LEAF && !visited.contains(n)).map(|(n, _)| *n).collect();
+    let mut unlinked: Vec<u32> = nodes
+        .iter()
+        .filter(|(n, node)| node.desc.kind == kind::LEAF && !visited.contains(n))
+        .map(|(n, _)| *n)
+        .collect();
     unlinked.sort_unstable();
     if !unlinked.is_empty() {
         let before = out.records.len();
@@ -343,19 +454,36 @@ fn scan_tree(
             let mut none = None;
             take_leaf(&nodes[n], &mut out, f, false, &mut none);
         }
-        f.push("HFS_LEAF_NOT_LINKED", Severity::Critical, ObjectType::Node, None, unlinked.first().copied(), None,
-            format!("Árbol {name}: {} nodos hoja con {} registros no están enlazados; se recuperan por barrido",
-                unlinked.len(), out.records.len() - before),
-            tree_details(json!({ "nodes": unlinked })));
+        f.push(
+            "HFS_LEAF_NOT_LINKED",
+            Severity::Critical,
+            ObjectType::Node,
+            None,
+            unlinked.first().copied(),
+            None,
+            format!(
+                "Árbol {name}: {} nodos hoja con {} registros no están enlazados; se recuperan por barrido",
+                unlinked.len(),
+                out.records.len() - before
+            ),
+            tree_details(json!({ "nodes": unlinked })),
+        );
     }
 
     // 5) Estructura del índice.
     let mut reachable_leaves = HashSet::new();
     if h.tree_depth == 0 || h.root_node == 0 {
         if h.leaf_records > 0 || !chain.is_empty() {
-            f.push("HFS_BTREE_ROOT_INVALID", Severity::Critical, ObjectType::Header, None, Some(0), None,
+            f.push(
+                "HFS_BTREE_ROOT_INVALID",
+                Severity::Critical,
+                ObjectType::Header,
+                None,
+                Some(0),
+                None,
                 format!("Árbol {name}: la cabecera no tiene nodo raíz pero el árbol contiene registros"),
-                tree_details(json!({})));
+                tree_details(json!({})),
+            );
         }
     } else {
         let mut stack = vec![(h.root_node, h.tree_depth as u8, None::<Vec<u8>>)];
@@ -368,21 +496,47 @@ fn scan_tree(
                 continue;
             }
             let Some(node) = nodes.get(&n) else {
-                f.push("HFS_BTREE_ROOT_INVALID", Severity::Critical, ObjectType::Node, None, Some(n), None,
-                    format!("Árbol {name}: el índice apunta al nodo {n}, que no es válido"), tree_details(json!({})));
+                f.push(
+                    "HFS_BTREE_ROOT_INVALID",
+                    Severity::Critical,
+                    ObjectType::Node,
+                    None,
+                    Some(n),
+                    None,
+                    format!("Árbol {name}: el índice apunta al nodo {n}, que no es válido"),
+                    tree_details(json!({})),
+                );
                 continue;
             };
             if node.desc.height != expected_height && !depth_reported {
                 depth_reported = true;
-                f.push("HFS_BTREE_DEPTH_MISMATCH", Severity::Minor, ObjectType::Node, None, Some(n), None,
-                    format!("Árbol {name}: el nodo {n} tiene altura {} y se esperaba {expected_height}", node.desc.height),
-                    tree_details(json!({})));
+                f.push(
+                    "HFS_BTREE_DEPTH_MISMATCH",
+                    Severity::Minor,
+                    ObjectType::Node,
+                    None,
+                    Some(n),
+                    None,
+                    format!(
+                        "Árbol {name}: el nodo {n} tiene altura {} y se esperaba {expected_height}",
+                        node.desc.height
+                    ),
+                    tree_details(json!({})),
+                );
             }
-            if let (Some(pk), Some(first)) = (parent_key, (!node.records.is_empty()).then(|| key_of(node, 0)).flatten()) {
+            if let (Some(pk), Some(first)) = (parent_key, (!node.records.is_empty()).then(|| key_of(node, 0)).flatten())
+            {
                 if cmp(&pk, &first) != Ordering::Equal {
-                    f.push("HFS_INDEX_KEY_MISMATCH", Severity::Minor, ObjectType::Node, None, Some(n), None,
+                    f.push(
+                        "HFS_INDEX_KEY_MISMATCH",
+                        Severity::Minor,
+                        ObjectType::Node,
+                        None,
+                        Some(n),
+                        None,
                         format!("Árbol {name}: la clave de índice del nodo {n} no coincide con su primera clave"),
-                        tree_details(json!({})));
+                        tree_details(json!({})),
+                    );
                 }
             }
             match node.desc.kind {
@@ -395,8 +549,16 @@ fn scan_tree(
                     }
                     for i in 0..node.records.len() {
                         let Some((k, d)) = split_record(node.record(i), true, &h) else {
-                            f.push("HFS_RECORD_INVALID", Severity::Critical, ObjectType::Node, None, Some(n), None,
-                                format!("Árbol {name}: registro de índice {i} del nodo {n} no válido"), tree_details(json!({})));
+                            f.push(
+                                "HFS_RECORD_INVALID",
+                                Severity::Critical,
+                                ObjectType::Node,
+                                None,
+                                Some(n),
+                                None,
+                                format!("Árbol {name}: registro de índice {i} del nodo {n} no válido"),
+                                tree_details(json!({})),
+                            );
                             continue;
                         };
                         let child = be_u32(d, 0);
@@ -411,22 +573,37 @@ fn scan_tree(
         let mut bad_siblings = 0;
         for (i, (height, _, n)) in index_nodes.iter().enumerate() {
             let next = index_nodes.get(i + 1).filter(|x| x.0 == *height).map(|x| x.2).unwrap_or(0);
-            let prev = i.checked_sub(1).and_then(|j| index_nodes.get(j)).filter(|x| x.0 == *height).map(|x| x.2).unwrap_or(0);
+            let prev =
+                i.checked_sub(1).and_then(|j| index_nodes.get(j)).filter(|x| x.0 == *height).map(|x| x.2).unwrap_or(0);
             let d = nodes[n].desc;
             if d.flink != next || d.blink != prev {
                 bad_siblings += 1;
             }
         }
         if bad_siblings > 0 {
-            f.push("HFS_BTREE_SIBLING_LINK", Severity::Minor, ObjectType::Node, None, None, None,
+            f.push(
+                "HFS_BTREE_SIBLING_LINK",
+                Severity::Minor,
+                ObjectType::Node,
+                None,
+                None,
+                None,
                 format!("Árbol {name}: {bad_siblings} nodos de índice con enlaces incorrectos a sus hermanos"),
-                tree_details(json!({ "nodes": bad_siblings })));
+                tree_details(json!({ "nodes": bad_siblings })),
+            );
         }
         let missing = chain.iter().filter(|n| !reachable_leaves.contains(n)).count();
         if missing > 0 {
-            f.push("HFS_INDEX_INCOMPLETE", Severity::Minor, ObjectType::Node, None, None, None,
+            f.push(
+                "HFS_INDEX_INCOMPLETE",
+                Severity::Minor,
+                ObjectType::Node,
+                None,
+                None,
+                None,
                 format!("Árbol {name}: {missing} nodos hoja no son accesibles desde el índice"),
-                tree_details(json!({ "leaves": missing })));
+                tree_details(json!({ "leaves": missing })),
+            );
         }
     }
     progress.advance(limit as u64, limit as u64);
@@ -445,23 +622,43 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
     }
     let available = vol.dev.len().saturating_sub(vol.offset);
     if vh.volume_bytes() > available {
-        f.simple("HFS_VOLUME_TRUNCATED", Severity::Critical, ObjectType::Header,
-            format!("El volumen declara {} bytes y el dispositivo solo tiene {available}", vh.volume_bytes()));
+        f.simple(
+            "HFS_VOLUME_TRUNCATED",
+            Severity::Critical,
+            ObjectType::Header,
+            format!("El volumen declara {} bytes y el dispositivo solo tiene {available}", vh.volume_bytes()),
+        );
     }
     match vol.alternate_header()? {
         Some(alt) if alt.block_size == vh.block_size && alt.total_blocks == vh.total_blocks => {}
-        Some(_) => f.simple("HFS_ALT_HEADER_MISMATCH", Severity::Minor, ObjectType::Header,
-            "La copia alternativa del Volume Header no coincide con la principal".into()),
-        None => f.simple("HFS_ALT_HEADER_MISSING", Severity::Minor, ObjectType::Header,
-            "No se encontró la copia alternativa del Volume Header".into()),
+        Some(_) => f.simple(
+            "HFS_ALT_HEADER_MISMATCH",
+            Severity::Minor,
+            ObjectType::Header,
+            "La copia alternativa del Volume Header no coincide con la principal".into(),
+        ),
+        None => f.simple(
+            "HFS_ALT_HEADER_MISSING",
+            Severity::Minor,
+            ObjectType::Header,
+            "No se encontró la copia alternativa del Volume Header".into(),
+        ),
     }
     if vh.attributes & attr::UNMOUNTED == 0 {
-        f.simple("HFS_NOT_UNMOUNTED", Severity::Cosmetic, ObjectType::Header,
-            "El volumen no se desmontó limpiamente la última vez".into());
+        f.simple(
+            "HFS_NOT_UNMOUNTED",
+            Severity::Cosmetic,
+            ObjectType::Header,
+            "El volumen no se desmontó limpiamente la última vez".into(),
+        );
     }
     if vh.attributes & attr::INCONSISTENT != 0 {
-        f.simple("HFS_MARKED_INCONSISTENT", Severity::Minor, ObjectType::Header,
-            "El sistema marcó el volumen como inconsistente".into());
+        f.simple(
+            "HFS_MARKED_INCONSISTENT",
+            Severity::Minor,
+            ObjectType::Header,
+            "El sistema marcó el volumen como inconsistente".into(),
+        );
     }
     if vh.is_journaled() {
         check_journal(vol, &mut f)?;
@@ -486,14 +683,28 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
             stats.nodes_damaged += ts.damaged_nodes;
             for (k, d, node, _) in ts.records {
                 match (ExtentKey::parse(&k), parse_record(&d)) {
-                    (Some(key), Some(exts)) => overflow.entry((key.file_id, key.fork_type)).or_default().push((key.start_block, exts)),
-                    _ => f.push("HFS_RECORD_INVALID", Severity::Critical, ObjectType::Extent, None, Some(node), None,
-                        format!("Registro de extents ilegible en el nodo {node}"), json!({ "tree": "extents" })),
+                    (Some(key), Some(exts)) => {
+                        overflow.entry((key.file_id, key.fork_type)).or_default().push((key.start_block, exts))
+                    }
+                    _ => f.push(
+                        "HFS_RECORD_INVALID",
+                        Severity::Critical,
+                        ObjectType::Extent,
+                        None,
+                        Some(node),
+                        None,
+                        format!("Registro de extents ilegible en el nodo {node}"),
+                        json!({ "tree": "extents" }),
+                    ),
                 }
             }
         }
-        Err(e) => f.simple("HFS_BTREE_HEADER", Severity::Critical, ObjectType::Header,
-            format!("Árbol de extents ilegible: {e}")),
+        Err(e) => f.simple(
+            "HFS_BTREE_HEADER",
+            Severity::Critical,
+            ObjectType::Header,
+            format!("Árbol de extents ilegible: {e}"),
+        ),
     }
 
     // Catálogo
@@ -535,10 +746,7 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
     check_cancel(progress)?;
     check_allocation(vol, &catalog, &overflow, &mut f, progress)?;
 
-    let name = catalog
-        .folders
-        .get(&cnid::ROOT_FOLDER)
-        .map(|(k, _)| from_hfs_name(&k.name));
+    let name = catalog.folders.get(&cnid::ROOT_FOLDER).map(|(k, _)| from_hfs_name(&k.name));
     let info = FsInfo {
         kind: if vh.is_hfsx() { FsKind::Hfsx } else { FsKind::HfsPlus },
         name,
@@ -566,7 +774,8 @@ fn rescue_leaf(tree: &BTree<'_>, n: u32, h: &crate::btree::HeaderRecord) -> FsRe
     raw[9] = 1;
     let Ok(node) = Node::parse(n, raw) else { return Ok(None) };
     let valid = !node.records.is_empty()
-        && (0..node.records.len()).all(|i| split_record(node.record(i), false, h).is_some_and(|(k, d)| !k.is_empty() && d.len() >= 2));
+        && (0..node.records.len())
+            .all(|i| split_record(node.record(i), false, h).is_some_and(|(k, d)| !k.is_empty() && d.len() >= 2));
     Ok(valid.then_some(node))
 }
 
@@ -574,14 +783,23 @@ fn check_journal(vol: &Volume<'_>, f: &mut Findings) -> FsResult<()> {
     let vh = &vol.vh;
     let jib_off = vol.offset + vh.journal_info_block as u64 * vh.block_size as u64;
     if jib_off + 52 > vol.dev.len() {
-        f.simple("HFS_JOURNAL_INVALID", Severity::Minor, ObjectType::Header, "El bloque de información del journal está fuera del volumen".into());
+        f.simple(
+            "HFS_JOURNAL_INVALID",
+            Severity::Minor,
+            ObjectType::Header,
+            "El bloque de información del journal está fuera del volumen".into(),
+        );
         return Ok(());
     }
     let jib = vol.dev.read_vec(jib_off, 52)?;
     let flags = be_u32(&jib, 0);
     if flags & 0x2 != 0 {
-        f.simple("HFS_JOURNAL_EXTERNAL", Severity::Minor, ObjectType::Header,
-            "El journal está en otro dispositivo; no se puede comprobar si tiene transacciones pendientes".into());
+        f.simple(
+            "HFS_JOURNAL_EXTERNAL",
+            Severity::Minor,
+            ObjectType::Header,
+            "El journal está en otro dispositivo; no se puede comprobar si tiene transacciones pendientes".into(),
+        );
         return Ok(());
     }
     // kJIJournalNeedInitMask: el journal aún no se ha inicializado, no puede tener transacciones.
@@ -590,7 +808,12 @@ fn check_journal(vol: &Volume<'_>, f: &mut Findings) -> FsResult<()> {
     }
     let jh_off = vol.offset + be_u64(&jib, 36);
     if jh_off + 24 > vol.dev.len() {
-        f.simple("HFS_JOURNAL_INVALID", Severity::Minor, ObjectType::Header, "La cabecera del journal está fuera del volumen".into());
+        f.simple(
+            "HFS_JOURNAL_INVALID",
+            Severity::Minor,
+            ObjectType::Header,
+            "La cabecera del journal está fuera del volumen".into(),
+        );
         return Ok(());
     }
     let jh = vol.dev.read_vec(jh_off, 24)?;
@@ -599,7 +822,12 @@ fn check_journal(vol: &Volume<'_>, f: &mut Findings) -> FsResult<()> {
     } else if jh[0..4] == 0x4a4e_4c78u32.to_le_bytes() {
         (u64::from_le_bytes(jh[8..16].try_into().expect("8")), u64::from_le_bytes(jh[16..24].try_into().expect("8")))
     } else {
-        f.simple("HFS_JOURNAL_INVALID", Severity::Minor, ObjectType::Header, "Firma de la cabecera del journal no válida".into());
+        f.simple(
+            "HFS_JOURNAL_INVALID",
+            Severity::Minor,
+            ObjectType::Header,
+            "Firma de la cabecera del journal no válida".into(),
+        );
         return Ok(());
     };
     if start != end {
@@ -614,15 +842,30 @@ fn build_catalog(records: Vec<RawRecord>, f: &mut Findings) -> CatalogSnapshot {
     let mut seen_keys: HashMap<CatalogKey, Vec<u8>> = HashMap::new();
     for (k, d, node, linked) in records {
         let (Some(key), Some(rec)) = (CatalogKey::parse(&k), CatalogRecord::parse(&d)) else {
-            f.push("HFS_RECORD_INVALID", Severity::Critical, ObjectType::Node, None, Some(node), None,
-                format!("Registro del catálogo ilegible en el nodo {node}"), json!({ "tree": "catálogo" }));
+            f.push(
+                "HFS_RECORD_INVALID",
+                Severity::Critical,
+                ObjectType::Node,
+                None,
+                Some(node),
+                None,
+                format!("Registro del catálogo ilegible en el nodo {node}"),
+                json!({ "tree": "catálogo" }),
+            );
             continue;
         };
         if let Some(prev) = seen_keys.get(&key) {
             if *prev != d {
-                f.push("HFS_DUPLICATE_KEY", Severity::Critical, ObjectType::Node, None, Some(node), None,
+                f.push(
+                    "HFS_DUPLICATE_KEY",
+                    Severity::Critical,
+                    ObjectType::Node,
+                    None,
+                    Some(node),
+                    None,
                     format!("Clave duplicada con contenido distinto en el nodo {node} ({})", from_hfs_name(&key.name)),
-                    json!({ "parent": key.parent_id }));
+                    json!({ "parent": key.parent_id }),
+                );
             }
             continue;
         }
@@ -639,15 +882,37 @@ fn build_catalog(records: Vec<RawRecord>, f: &mut Findings) -> CatalogSnapshot {
         match rec {
             CatalogRecord::Folder(r) => {
                 if let Some(prev) = cat.folders.insert(r.folder_id, (key.clone(), r.clone())) {
-                    f.push("HFS_DUPLICATE_CNID", Severity::Critical, ObjectType::Folder, Some(r.folder_id as u64), Some(node), None,
-                        format!("El CNID {} lo usan dos carpetas («{}» y «{}»)", r.folder_id, from_hfs_name(&prev.0.name), from_hfs_name(&key.name)),
-                        json!({}));
+                    f.push(
+                        "HFS_DUPLICATE_CNID",
+                        Severity::Critical,
+                        ObjectType::Folder,
+                        Some(r.folder_id as u64),
+                        Some(node),
+                        None,
+                        format!(
+                            "El CNID {} lo usan dos carpetas («{}» y «{}»)",
+                            r.folder_id,
+                            from_hfs_name(&prev.0.name),
+                            from_hfs_name(&key.name)
+                        ),
+                        json!({}),
+                    );
                 }
             }
             CatalogRecord::File(r) => {
-                if cat.folders.contains_key(&r.file_id) || cat.files.insert(r.file_id, (key.clone(), r.clone())).is_some() {
-                    f.push("HFS_DUPLICATE_CNID", Severity::Critical, ObjectType::File, Some(r.file_id as u64), Some(node), None,
-                        format!("El CNID {} está asignado a más de un elemento", r.file_id), json!({}));
+                if cat.folders.contains_key(&r.file_id)
+                    || cat.files.insert(r.file_id, (key.clone(), r.clone())).is_some()
+                {
+                    f.push(
+                        "HFS_DUPLICATE_CNID",
+                        Severity::Critical,
+                        ObjectType::File,
+                        Some(r.file_id as u64),
+                        Some(node),
+                        None,
+                        format!("El CNID {} está asignado a más de un elemento", r.file_id),
+                        json!({}),
+                    );
                 }
             }
             CatalogRecord::FolderThread(t) => {
@@ -663,7 +928,12 @@ fn build_catalog(records: Vec<RawRecord>, f: &mut Findings) -> CatalogSnapshot {
 
 fn check_catalog(vh: &crate::volume_header::VolumeHeader, cat: &CatalogSnapshot, f: &mut Findings) {
     if !cat.folders.contains_key(&cnid::ROOT_FOLDER) {
-        f.simple("HFS_ROOT_MISSING", Severity::Critical, ObjectType::Folder, "No existe el registro de la carpeta raíz (CNID 2)".into());
+        f.simple(
+            "HFS_ROOT_MISSING",
+            Severity::Critical,
+            ObjectType::Folder,
+            "No existe el registro de la carpeta raíz (CNID 2)".into(),
+        );
     }
     let mut children: HashMap<u32, u32> = HashMap::new();
     let mut max_id = 0u32;
@@ -674,20 +944,50 @@ fn check_catalog(vh: &crate::volume_header::VolumeHeader, cat: &CatalogSnapshot,
         if id != cnid::ROOT_FOLDER {
             *children.entry(key.parent_id).or_default() += 1;
             if !cat.folders.contains_key(&key.parent_id) {
-                f.push("HFS_ORPHAN_RECORD", Severity::Critical, ot, Some(id as u64), None, Some(cat.label(id, key)),
-                    format!("{} cuya carpeta padre (CNID {}) no existe en el catálogo", if is_folder { "Carpeta" } else { "Archivo" }, key.parent_id),
-                    json!({ "parent": key.parent_id }));
+                f.push(
+                    "HFS_ORPHAN_RECORD",
+                    Severity::Critical,
+                    ot,
+                    Some(id as u64),
+                    None,
+                    Some(cat.label(id, key)),
+                    format!(
+                        "{} cuya carpeta padre (CNID {}) no existe en el catálogo",
+                        if is_folder { "Carpeta" } else { "Archivo" },
+                        key.parent_id
+                    ),
+                    json!({ "parent": key.parent_id }),
+                );
             }
         } else if key.parent_id != cnid::ROOT_PARENT {
-            f.simple("HFS_ROOT_MISSING", Severity::Critical, ObjectType::Folder, "La carpeta raíz tiene un padre incorrecto".into());
+            f.simple(
+                "HFS_ROOT_MISSING",
+                Severity::Critical,
+                ObjectType::Folder,
+                "La carpeta raíz tiene un padre incorrecto".into(),
+            );
         }
         match cat.threads.get(&id) {
-            None if needs_thread => f.push("HFS_MISSING_THREAD", Severity::Minor, ot, Some(id as u64), None, Some(cat.label(id, key)),
-                "Falta el thread record; el elemento no se puede localizar por su CNID".into(), json!({})),
-            Some((tf, t)) if *tf != is_folder || t.parent_id != key.parent_id || t.name != key.name => {
-                f.push("HFS_THREAD_MISMATCH", Severity::Minor, ot, Some(id as u64), None, Some(cat.label(id, key)),
-                    "El thread record no coincide con el registro del elemento".into(), json!({}))
-            }
+            None if needs_thread => f.push(
+                "HFS_MISSING_THREAD",
+                Severity::Minor,
+                ot,
+                Some(id as u64),
+                None,
+                Some(cat.label(id, key)),
+                "Falta el thread record; el elemento no se puede localizar por su CNID".into(),
+                json!({}),
+            ),
+            Some((tf, t)) if *tf != is_folder || t.parent_id != key.parent_id || t.name != key.name => f.push(
+                "HFS_THREAD_MISMATCH",
+                Severity::Minor,
+                ot,
+                Some(id as u64),
+                None,
+                Some(cat.label(id, key)),
+                "El thread record no coincide con el registro del elemento".into(),
+                json!({}),
+            ),
             _ => {}
         }
     };
@@ -700,26 +1000,50 @@ fn check_catalog(vh: &crate::volume_header::VolumeHeader, cat: &CatalogSnapshot,
     for (id, (is_folder, t)) in &cat.threads {
         let exists = if *is_folder { cat.folders.contains_key(id) } else { cat.files.contains_key(id) };
         if !exists {
-            f.push("HFS_ORPHAN_THREAD", Severity::Minor, ObjectType::Node, Some(*id as u64), None, None,
-                format!("Thread record del CNID {id} («{}») sin elemento asociado", from_hfs_name(&t.name)), json!({}));
+            f.push(
+                "HFS_ORPHAN_THREAD",
+                Severity::Minor,
+                ObjectType::Node,
+                Some(*id as u64),
+                None,
+                None,
+                format!("Thread record del CNID {id} («{}») sin elemento asociado", from_hfs_name(&t.name)),
+                json!({}),
+            );
         }
     }
     for (id, (key, rec)) in &cat.folders {
         let real = children.get(id).copied().unwrap_or(0);
         if real != rec.valence {
-            f.push("HFS_VALENCE_MISMATCH", Severity::Minor, ObjectType::Folder, Some(*id as u64), None, Some(cat.label(*id, key)),
-                format!("La carpeta declara {} elementos y contiene {real}", rec.valence), json!({ "declared": rec.valence, "found": real }));
+            f.push(
+                "HFS_VALENCE_MISMATCH",
+                Severity::Minor,
+                ObjectType::Folder,
+                Some(*id as u64),
+                None,
+                Some(cat.label(*id, key)),
+                format!("La carpeta declara {} elementos y contiene {real}", rec.valence),
+                json!({ "declared": rec.valence, "found": real }),
+            );
         }
     }
     let files = cat.files.len() as u32;
     let folders = cat.folders.len().saturating_sub(1) as u32;
     if vh.file_count != files {
-        f.simple("HFS_FILE_COUNT", Severity::Minor, ObjectType::Header,
-            format!("El Volume Header indica {} archivos; el catálogo contiene {files}", vh.file_count));
+        f.simple(
+            "HFS_FILE_COUNT",
+            Severity::Minor,
+            ObjectType::Header,
+            format!("El Volume Header indica {} archivos; el catálogo contiene {files}", vh.file_count),
+        );
     }
     if vh.folder_count != folders {
-        f.simple("HFS_FOLDER_COUNT", Severity::Minor, ObjectType::Header,
-            format!("El Volume Header indica {} carpetas; el catálogo contiene {folders}", vh.folder_count));
+        f.simple(
+            "HFS_FOLDER_COUNT",
+            Severity::Minor,
+            ObjectType::Header,
+            format!("El Volume Header indica {} carpetas; el catálogo contiene {folders}", vh.folder_count),
+        );
     }
     if vh.attributes & attr::CNIDS_REUSED == 0 && max_id >= vh.next_catalog_id {
         f.simple("HFS_NEXT_CNID", Severity::Critical, ObjectType::Header,
@@ -746,34 +1070,69 @@ fn check_allocation(
     let bs = vh.block_size as u64;
     let mut claims: Vec<Claim> = Vec::new();
 
-    let mut check_fork = |fork: &ForkData, id: u32, fork_type: u8, owner: String, path: Option<String>, f: &mut Findings| {
-        if fork.logical_size == 0 && fork.total_blocks == 0 {
-            return;
-        }
-        let exts = full_extents(fork, id, fork_type, overflow);
-        let sum: u64 = exts.iter().map(|e| e.block_count as u64).sum();
-        let ot = ObjectType::Extent;
-        if sum < fork.total_blocks as u64 {
-            f.push("HFS_FORK_EXTENTS_MISSING", Severity::Critical, ot, Some(id as u64), None, path.clone(),
-                format!("{owner}: los extents cubren {sum} de {} bloques; faltan datos", fork.total_blocks), json!({}));
-        } else if sum > fork.total_blocks as u64 {
-            f.push("HFS_FORK_BLOCKS_MISMATCH", Severity::Minor, ot, Some(id as u64), None, path.clone(),
-                format!("{owner}: los extents suman {sum} bloques y el fork declara {}", fork.total_blocks), json!({}));
-        }
-        if fork.logical_size > fork.total_blocks as u64 * bs {
-            f.push("HFS_FORK_SIZE", Severity::Critical, ot, Some(id as u64), None, path.clone(),
-                format!("{owner}: tamaño lógico mayor que el espacio asignado"), json!({}));
-        }
-        for e in exts {
-            if e.start_block as u64 + e.block_count as u64 > total as u64 {
-                f.push("HFS_EXTENT_OUT_OF_RANGE", Severity::Critical, ot, Some(id as u64), None, path.clone(),
-                    format!("{owner}: extent {}+{} fuera de los límites del volumen ({total} bloques)", e.start_block, e.block_count),
-                    json!({ "start": e.start_block, "count": e.block_count }));
-            } else {
-                claims.push(Claim { start: e.start_block, count: e.block_count, owner: owner.clone(), id });
+    let mut check_fork =
+        |fork: &ForkData, id: u32, fork_type: u8, owner: String, path: Option<String>, f: &mut Findings| {
+            if fork.logical_size == 0 && fork.total_blocks == 0 {
+                return;
             }
-        }
-    };
+            let exts = full_extents(fork, id, fork_type, overflow);
+            let sum: u64 = exts.iter().map(|e| e.block_count as u64).sum();
+            let ot = ObjectType::Extent;
+            if sum < fork.total_blocks as u64 {
+                f.push(
+                    "HFS_FORK_EXTENTS_MISSING",
+                    Severity::Critical,
+                    ot,
+                    Some(id as u64),
+                    None,
+                    path.clone(),
+                    format!("{owner}: los extents cubren {sum} de {} bloques; faltan datos", fork.total_blocks),
+                    json!({}),
+                );
+            } else if sum > fork.total_blocks as u64 {
+                f.push(
+                    "HFS_FORK_BLOCKS_MISMATCH",
+                    Severity::Minor,
+                    ot,
+                    Some(id as u64),
+                    None,
+                    path.clone(),
+                    format!("{owner}: los extents suman {sum} bloques y el fork declara {}", fork.total_blocks),
+                    json!({}),
+                );
+            }
+            if fork.logical_size > fork.total_blocks as u64 * bs {
+                f.push(
+                    "HFS_FORK_SIZE",
+                    Severity::Critical,
+                    ot,
+                    Some(id as u64),
+                    None,
+                    path.clone(),
+                    format!("{owner}: tamaño lógico mayor que el espacio asignado"),
+                    json!({}),
+                );
+            }
+            for e in exts {
+                if e.start_block as u64 + e.block_count as u64 > total as u64 {
+                    f.push(
+                        "HFS_EXTENT_OUT_OF_RANGE",
+                        Severity::Critical,
+                        ot,
+                        Some(id as u64),
+                        None,
+                        path.clone(),
+                        format!(
+                            "{owner}: extent {}+{} fuera de los límites del volumen ({total} bloques)",
+                            e.start_block, e.block_count
+                        ),
+                        json!({ "start": e.start_block, "count": e.block_count }),
+                    );
+                } else {
+                    claims.push(Claim { start: e.start_block, count: e.block_count, owner: owner.clone(), id });
+                }
+            }
+        };
 
     for (fork, id, label) in [
         (&vh.allocation_file, cnid::ALLOCATION_FILE, "Archivo de asignación"),
@@ -795,7 +1154,12 @@ fn check_allocation(
     let tail_start = ((vh.volume_bytes().saturating_sub(1024)) / bs) as u32;
     claims.push(Claim { start: 0, count: reserved_head, owner: "Zona reservada inicial".into(), id: 0 });
     if tail_start < total {
-        claims.push(Claim { start: tail_start, count: total - tail_start, owner: "Zona reservada final".into(), id: 0 });
+        claims.push(Claim {
+            start: tail_start,
+            count: total - tail_start,
+            owner: "Zona reservada final".into(),
+            id: 0,
+        });
     }
 
     // Solapes
@@ -806,10 +1170,16 @@ fn check_allocation(
         let end = c.start as u64 + c.count as u64;
         if i > 0 && (c.start as u64) < max_end && !(c.id == 0 && claims[max_owner].id == 0) {
             let other = &claims[max_owner];
-            f.push("HFS_EXTENT_OVERLAP", Severity::Critical, ObjectType::Extent, Some(c.id as u64), None,
+            f.push(
+                "HFS_EXTENT_OVERLAP",
+                Severity::Critical,
+                ObjectType::Extent,
+                Some(c.id as u64),
+                None,
                 (c.id >= cnid::FIRST_USER).then(|| c.owner.clone()),
                 format!("Los bloques {}–{} de «{}» se solapan con «{}»", c.start, end - 1, c.owner, other.owner),
-                json!({ "start": c.start, "count": c.count, "other": other.owner }));
+                json!({ "start": c.start, "count": c.count, "other": other.owner }),
+            );
         }
         if end > max_end {
             max_end = end;
@@ -821,8 +1191,12 @@ fn check_allocation(
     let alloc_reader = vol.fork_reader(&vh.allocation_file, cnid::ALLOCATION_FILE, true, overflow);
     let need = (total as usize).div_ceil(8);
     if (alloc_reader.mapped_bytes() as usize) < need || (vh.allocation_file.logical_size as usize) < need {
-        f.simple("HFS_BITMAP_TOO_SMALL", Severity::Critical, ObjectType::Bitmap,
-            "El archivo de asignación es demasiado pequeño para el volumen".into());
+        f.simple(
+            "HFS_BITMAP_TOO_SMALL",
+            Severity::Critical,
+            ObjectType::Bitmap,
+            "El archivo de asignación es demasiado pequeño para el volumen".into(),
+        );
         return Ok(());
     }
     let bitmap = AllocationBitmap::from_bytes(alloc_reader.read_vec(0, need)?, total);
@@ -847,19 +1221,37 @@ fn check_allocation(
         }
     }
     if unprotected > 0 {
-        f.push("HFS_BITMAP_UNDERALLOC", Severity::Critical, ObjectType::Bitmap, None, None, None,
+        f.push(
+            "HFS_BITMAP_UNDERALLOC",
+            Severity::Critical,
+            ObjectType::Bitmap,
+            None,
+            None,
+            None,
             format!("{unprotected} bloques en uso figuran como libres: podrían sobrescribirse"),
-            json!({ "blocks": unprotected, "first": first_unprotected }));
+            json!({ "blocks": unprotected, "first": first_unprotected }),
+        );
     }
     if leaked > 0 {
-        f.push("HFS_BITMAP_LEAK", Severity::Minor, ObjectType::Bitmap, None, None, None,
+        f.push(
+            "HFS_BITMAP_LEAK",
+            Severity::Minor,
+            ObjectType::Bitmap,
+            None,
+            None,
+            None,
             format!("{leaked} bloques marcados como usados no pertenecen a ningún archivo"),
-            json!({ "blocks": leaked }));
+            json!({ "blocks": leaked }),
+        );
     }
     let free = total - bitmap.count_set();
     if free != vh.free_blocks {
-        f.simple("HFS_FREE_COUNT", Severity::Minor, ObjectType::Header,
-            format!("El Volume Header indica {} bloques libres y el bitmap {free}", vh.free_blocks));
+        f.simple(
+            "HFS_FREE_COUNT",
+            Severity::Minor,
+            ObjectType::Header,
+            format!("El Volume Header indica {} bloques libres y el bitmap {free}", vh.free_blocks),
+        );
     }
     Ok(())
 }

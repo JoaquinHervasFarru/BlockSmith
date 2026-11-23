@@ -4,8 +4,8 @@
 use std::path::PathBuf;
 
 use anyhow::{bail, Context};
-use clap::{Parser, Subcommand};
 use blocksmith_fs_hfsplus::fixtures::{apply_damage, build_volume, sample_tree, BuildOptions, Damage};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "blocksmith-corruptor", version, about = "Fixtures HFS+ con daños controlados")]
@@ -40,7 +40,10 @@ fn main() -> anyhow::Result<()> {
             let clean = build_volume(&multi, &sample_tree()).map_err(anyhow::Error::msg)?;
             std::fs::write(out.join("sano.img"), &clean)?;
             let hfsx = BuildOptions { case_sensitive: true, ..multi.clone() };
-            std::fs::write(out.join("sano-hfsx.img"), build_volume(&hfsx, &sample_tree()).map_err(anyhow::Error::msg)?)?;
+            std::fs::write(
+                out.join("sano-hfsx.img"),
+                build_volume(&hfsx, &sample_tree()).map_err(anyhow::Error::msg)?,
+            )?;
             for d in Damage::ALL {
                 let mut img = clean.clone();
                 apply_damage(&mut img, d).map_err(anyhow::Error::msg)?;

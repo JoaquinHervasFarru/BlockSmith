@@ -38,7 +38,13 @@ pub struct Replay {
 /// nuevo, pero la secuencia debe seguir avanzando.
 fn shared_cursor(path: &str) -> Cursor {
     static CURSORS: OnceLock<Mutex<HashMap<String, Cursor>>> = OnceLock::new();
-    CURSORS.get_or_init(Mutex::default).lock().expect("cursores de reproducción").entry(path.to_string()).or_default().clone()
+    CURSORS
+        .get_or_init(Mutex::default)
+        .lock()
+        .expect("cursores de reproducción")
+        .entry(path.to_string())
+        .or_default()
+        .clone()
 }
 
 impl Replay {
@@ -47,9 +53,9 @@ impl Replay {
     }
 
     pub fn from_file(path: &str) -> Self {
-        let file = std::fs::read(path)
-            .map_err(|e| format!("no se pudo leer {path}: {e}"))
-            .and_then(|b| serde_json::from_slice(&b).map_err(|e| format!("{path} no es un archivo de reproducción válido: {e}")));
+        let file = std::fs::read(path).map_err(|e| format!("no se pudo leer {path}: {e}")).and_then(|b| {
+            serde_json::from_slice(&b).map_err(|e| format!("{path} no es un archivo de reproducción válido: {e}"))
+        });
         Self { file, cursor: shared_cursor(path) }
     }
 }
@@ -103,9 +109,13 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("bs-replay-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("r.json");
-        std::fs::write(&path, r#"{ "devices": [ { "info": { "path": "/dev/x", "model": null, "serial": null, "firmware": null,
+        std::fs::write(
+            &path,
+            r#"{ "devices": [ { "info": { "path": "/dev/x", "model": null, "serial": null, "firmware": null,
             "bus": "other", "capacityBytes": 1, "removable": false, "rotational": null, "isBootDisk": false },
-            "sequence": [ { "kind": "unsupported", "detail": "uno" }, { "kind": "failed", "detail": "dos" } ] } ] }"#).unwrap();
+            "sequence": [ { "kind": "unsupported", "detail": "uno" }, { "kind": "failed", "detail": "dos" } ] } ] }"#,
+        )
+        .unwrap();
         let p = path.to_string_lossy().to_string();
         let a = Replay::from_file(&p);
         let dev = a.devices().unwrap().remove(0);

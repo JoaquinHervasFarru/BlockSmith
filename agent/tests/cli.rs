@@ -18,7 +18,13 @@ fn once_then_status() {
     let db = dir.path().join("datos").join("blocksmith.sqlite3");
     let bin = env!("CARGO_BIN_EXE_blocksmith-agent");
 
-    let out = Command::new(bin).env("BLOCKSMITH_HEALTH_REPLAY", &replay).arg("--db").arg(&db).args(["once", "--json"]).output().unwrap();
+    let out = Command::new(bin)
+        .env("BLOCKSMITH_HEALTH_REPLAY", &replay)
+        .arg("--db")
+        .arg(&db)
+        .args(["once", "--json"])
+        .output()
+        .unwrap();
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     let r: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(r["read"], 1);

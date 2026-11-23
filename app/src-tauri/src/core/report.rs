@@ -115,6 +115,9 @@ code,.path{{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}} .
         }
         out.push_str("</tbody></table>");
     }
-    out.push_str(&format!(r#"<p class="muted" style="margin-top:32px">Generado por BlockSmith {}.</p></main></body></html>"#, env!("CARGO_PKG_VERSION")));
+    out.push_str(&format!(
+        r#"<p class="muted" style="margin-top:32px">Generado por BlockSmith {}.</p></main></body></html>"#,
+        env!("CARGO_PKG_VERSION")
+    ));
     out
 }

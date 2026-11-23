@@ -9,8 +9,8 @@ use serde_json::json;
 use tauri::{AppHandle, State};
 
 use crate::core::dto::*;
-use crate::db::DbStatus;
 use crate::core::Core;
+use crate::db::DbStatus;
 use crate::jobs::JobManager;
 
 type Cmd<T> = Result<T, String>;
@@ -79,18 +79,33 @@ pub async fn get_diff(core: State<'_, Arc<Core>>, rebuild_id: i64) -> Cmd<Vec<Di
 }
 
 #[tauri::command]
-pub async fn tree_children(core: State<'_, Arc<Core>>, side: String, id: i64, parent: Option<u64>) -> Cmd<Vec<TreeNodeDto>> {
+pub async fn tree_children(
+    core: State<'_, Arc<Core>>,
+    side: String,
+    id: i64,
+    parent: Option<u64>,
+) -> Cmd<Vec<TreeNodeDto>> {
     Ok(core.tree_children(&side, id, parent)?)
 }
 
 #[tauri::command]
-pub async fn start_scan(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, volume_id: i64) -> Cmd<u64> {
+pub async fn start_scan(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    jobs: State<'_, JobManager>,
+    volume_id: i64,
+) -> Cmd<u64> {
     let core = core.inner().clone();
     Ok(jobs.spawn(app, "scan", move |p| Ok(json!({ "sessionId": core.scan(volume_id, p)? }))))
 }
 
 #[tauri::command]
-pub async fn start_plan(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, session_id: i64) -> Cmd<u64> {
+pub async fn start_plan(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    jobs: State<'_, JobManager>,
+    session_id: i64,
+) -> Cmd<u64> {
     let core = core.inner().clone();
     Ok(jobs.spawn(app, "plan", move |p| Ok(json!({ "rebuildId": core.plan(session_id, p)? }))))
 }
@@ -119,7 +134,10 @@ pub fn cancel_job(jobs: State<'_, JobManager>, job_id: u64) -> bool {
 pub async fn suggest_export_path(core: State<'_, Arc<Core>>, rebuild_id: i64) -> Cmd<String> {
     let r = core.get_rebuild(rebuild_id)?;
     let dir = PathBuf::from(core.settings()?.output_dir);
-    let stem = PathBuf::from(&r.source_path).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "volumen".into());
+    let stem = PathBuf::from(&r.source_path)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "volumen".into());
     let mut n = 1;
     loop {
         let name = if n == 1 { format!("{stem}-reparada.img") } else { format!("{stem}-reparada-{n}.img") };
@@ -132,7 +150,12 @@ pub async fn suggest_export_path(core: State<'_, Arc<Core>>, rebuild_id: i64) ->
 }
 
 #[tauri::command]
-pub async fn write_report(core: State<'_, Arc<Core>>, session_id: i64, format: String, path: Option<String>) -> Cmd<ReportDto> {
+pub async fn write_report(
+    core: State<'_, Arc<Core>>,
+    session_id: i64,
+    format: String,
+    path: Option<String>,
+) -> Cmd<ReportDto> {
     Ok(core.write_report(session_id, &format, path.as_deref().map(std::path::Path::new))?)
 }
 
@@ -149,7 +172,8 @@ pub async fn get_settings(core: State<'_, Arc<Core>>) -> Cmd<SettingsDto> {
 #[tauri::command]
 pub async fn set_settings(core: State<'_, Arc<Core>>, settings: SettingsDto) -> Cmd<SettingsDto> {
     if !settings.output_dir.is_empty() {
-        std::fs::create_dir_all(&settings.output_dir).map_err(|e| format!("no se puede crear la carpeta de salida: {e}"))?;
+        std::fs::create_dir_all(&settings.output_dir)
+            .map_err(|e| format!("no se puede crear la carpeta de salida: {e}"))?;
     }
     Ok(core.set_settings(&settings)?)
 }
@@ -225,7 +249,13 @@ pub async fn preflight(core: State<'_, Arc<Core>>, rebuild_id: i64) -> Cmd<Prefl
 }
 
 #[tauri::command]
-pub async fn start_repair(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, rebuild_id: i64, confirm: String) -> Cmd<u64> {
+pub async fn start_repair(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    jobs: State<'_, JobManager>,
+    rebuild_id: i64,
+    confirm: String,
+) -> Cmd<u64> {
     let core = core.inner().clone();
     Ok(jobs.spawn(app, "repair", move |p| {
         let r = core.repair_in_place(rebuild_id, &confirm, p)?;
@@ -241,13 +271,26 @@ pub async fn list_transactions(core: State<'_, Arc<Core>>) -> Cmd<Vec<TxDto>> {
 }
 
 #[tauri::command]
-pub async fn start_tx_rollback(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, tx_id: i64, force: bool) -> Cmd<u64> {
+pub async fn start_tx_rollback(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    jobs: State<'_, JobManager>,
+    tx_id: i64,
+    force: bool,
+) -> Cmd<u64> {
     let core = core.inner().clone();
-    Ok(jobs.spawn(app, "rollback", move |p| Ok(serde_json::to_value(core.rollback_tx(tx_id, force, p)?).unwrap_or_default())))
+    Ok(jobs.spawn(app, "rollback", move |p| {
+        Ok(serde_json::to_value(core.rollback_tx(tx_id, force, p)?).unwrap_or_default())
+    }))
 }
 
 #[tauri::command]
-pub async fn start_tx_complete(app: AppHandle, core: State<'_, Arc<Core>>, jobs: State<'_, JobManager>, tx_id: i64) -> Cmd<u64> {
+pub async fn start_tx_complete(
+    app: AppHandle,
+    core: State<'_, Arc<Core>>,
+    jobs: State<'_, JobManager>,
+    tx_id: i64,
+) -> Cmd<u64> {
     let core = core.inner().clone();
     Ok(jobs.spawn(app, "complete", move |p| Ok(serde_json::to_value(core.complete_tx(tx_id, p)?).unwrap_or_default())))
 }

@@ -60,8 +60,13 @@ impl Core {
 
     pub fn health_disk(&self, id: i64) -> CoreResult<DiskDetailDto> {
         let conn = self.db().conn();
-        let disk = repo::get_disk(&conn, id)?.ok_or_else(|| CoreError::NotFound(format!("disco {id} no encontrado")))?;
-        Ok(DiskDetailDto { history: repo::history(&conn, id, 90)?, alerts: repo::alerts(&conn, false, Some(id))?, disk })
+        let disk =
+            repo::get_disk(&conn, id)?.ok_or_else(|| CoreError::NotFound(format!("disco {id} no encontrado")))?;
+        Ok(DiskDetailDto {
+            history: repo::history(&conn, id, 90)?,
+            alerts: repo::alerts(&conn, false, Some(id))?,
+            disk,
+        })
     }
 
     pub fn health_status(&self) -> CoreResult<HealthStatusDto> {
@@ -69,7 +74,12 @@ impl Core {
         let poll_interval_min = repo::poll_interval_min(&conn)?;
         let open_alerts = repo::alerts(&conn, true, None)?.len() as i64;
         drop(conn);
-        Ok(HealthStatusDto { last_poll: last_poll(self.db())?, backend: auto_backend().name().into(), poll_interval_min, open_alerts })
+        Ok(HealthStatusDto {
+            last_poll: last_poll(self.db())?,
+            backend: auto_backend().name().into(),
+            poll_interval_min,
+            open_alerts,
+        })
     }
 
     pub fn alerts(&self, open_only: bool) -> CoreResult<Vec<AlertRow>> {
@@ -107,6 +117,9 @@ pub fn notification_text(alerts: &[NewAlert]) -> Option<(String, String)> {
     if alerts.len() == 1 {
         Some((format!("{} · {}", first.title, first.disk), first.message.clone()))
     } else {
-        Some((format!("{} alertas nuevas de salud de disco", alerts.len()), format!("{} · {}: {}", first.disk, first.title, first.message)))
+        Some((
+            format!("{} alertas nuevas de salud de disco", alerts.len()),
+            format!("{} · {}: {}", first.disk, first.title, first.message),
+        ))
     }
 }

@@ -110,7 +110,12 @@ fn pass(db: &Database, path: &Path) -> anyhow::Result<blocksmith_health::Collect
 fn summary(r: &blocksmith_health::CollectReport) -> String {
     let mut s = format!(
         "{} discos · {} leídos · {} sin S.M.A.R.T. · {} sin permiso · {} con error · {} alertas nuevas",
-        r.disks, r.read, r.unsupported, r.permission_denied, r.failed, r.new_alerts.len()
+        r.disks,
+        r.read,
+        r.unsupported,
+        r.permission_denied,
+        r.failed,
+        r.new_alerts.len()
     );
     if let Some(e) = &r.error {
         s.push_str(&format!(" · error: {e}"));
@@ -218,14 +223,31 @@ fn main() -> anyhow::Result<()> {
         }
         Cmd::Status => {
             match blocksmith_health::collector::last_poll(&db)? {
-                Some(p) => println!("Última lectura: {} (por {}, backend {}, {} de {} discos leídos{})", p.at, p.by, p.backend, p.read, p.disks,
-                    p.error.map(|e| format!(", error: {e}")).unwrap_or_default()),
+                Some(p) => println!(
+                    "Última lectura: {} (por {}, backend {}, {} de {} discos leídos{})",
+                    p.at,
+                    p.by,
+                    p.backend,
+                    p.read,
+                    p.disks,
+                    p.error.map(|e| format!(", error: {e}")).unwrap_or_default()
+                ),
                 None => println!("Todavía no se ha leído la salud de ningún disco."),
             }
             let conn = db.conn();
             for d in repo::list_disks(&conn)? {
-                let state = d.latest.as_ref().map(|s| s.overall.clone()).unwrap_or_else(|| d.read_status.clone().unwrap_or_default());
-                println!("  {} · {} · {} · {} alertas abiertas", d.path.unwrap_or_default(), d.model.unwrap_or_default(), state, d.open_alerts);
+                let state = d
+                    .latest
+                    .as_ref()
+                    .map(|s| s.overall.clone())
+                    .unwrap_or_else(|| d.read_status.clone().unwrap_or_default());
+                println!(
+                    "  {} · {} · {} · {} alertas abiertas",
+                    d.path.unwrap_or_default(),
+                    d.model.unwrap_or_default(),
+                    state,
+                    d.open_alerts
+                );
             }
         }
         Cmd::PrintService { .. } => unreachable!(),

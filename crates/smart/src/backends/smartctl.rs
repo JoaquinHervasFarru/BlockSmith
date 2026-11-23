@@ -6,7 +6,9 @@ use std::process::Command;
 
 use serde_json::Value;
 
-use crate::{ata, evaluate_ata, evaluate_nvme, Attribute, Bus, DeviceInfo, HealthSnapshot, NvmeHealth, Protocol, ReadOutcome};
+use crate::{
+    ata, evaluate_ata, evaluate_nvme, Attribute, Bus, DeviceInfo, HealthSnapshot, NvmeHealth, Protocol, ReadOutcome,
+};
 
 use super::HealthBackend;
 
@@ -42,7 +44,9 @@ impl HealthBackend for Missing {
 impl Smartctl {
     pub fn locate() -> Option<Self> {
         let from_path = std::env::var_os("PATH").and_then(|p| {
-            std::env::split_paths(&p).map(|d| d.join(if cfg!(windows) { "smartctl.exe" } else { "smartctl" })).find(|p| p.is_file())
+            std::env::split_paths(&p)
+                .map(|d| d.join(if cfg!(windows) { "smartctl.exe" } else { "smartctl" }))
+                .find(|p| p.is_file())
         });
         from_path.or_else(|| CANDIDATES.iter().map(PathBuf::from).find(|p| p.is_file())).map(|bin| Self { bin })
     }
@@ -52,7 +56,8 @@ impl Smartctl {
     }
 
     fn run(&self, args: &[&str]) -> Result<Value, String> {
-        let out = Command::new(&self.bin).args(args).output().map_err(|e| format!("no se pudo ejecutar smartctl: {e}"))?;
+        let out =
+            Command::new(&self.bin).args(args).output().map_err(|e| format!("no se pudo ejecutar smartctl: {e}"))?;
         serde_json::from_slice(&out.stdout).map_err(|e| format!("salida de smartctl no válida: {e}"))
     }
 }
@@ -71,8 +76,15 @@ impl HealthBackend for Smartctl {
             match self.run(&["--json=c", "-i", "-d", ty, name]) {
                 Ok(info) => out.push(device_from_json(name, &info)),
                 Err(_) => out.push(DeviceInfo {
-                    path: name.into(), model: None, serial: None, firmware: None, bus: Bus::Other, capacity_bytes: 0,
-                    removable: false, rotational: None, is_boot_disk: false,
+                    path: name.into(),
+                    model: None,
+                    serial: None,
+                    firmware: None,
+                    bus: Bus::Other,
+                    capacity_bytes: 0,
+                    removable: false,
+                    rotational: None,
+                    is_boot_disk: false,
                 }),
             }
         }
@@ -126,7 +138,9 @@ pub fn outcome_from_json(v: &Value) -> ReadOutcome {
         .collect();
     let joined = messages.join("; ");
     if joined.contains("Permission denied") || joined.contains("Operation not permitted") {
-        return ReadOutcome::PermissionDenied("smartctl necesita permisos de administrador para leer este disco".into());
+        return ReadOutcome::PermissionDenied(
+            "smartctl necesita permisos de administrador para leer este disco".into(),
+        );
     }
     if let Some(log) = v.get("nvme_smart_health_information_log").filter(|l| l.is_object()) {
         let n = |k: &str| log[k].as_u64().unwrap_or(0);
@@ -262,7 +276,9 @@ mod tests {
 
         // Salida real de smartctl 7.4 con un disco virtio (capturada en el entorno de desarrollo).
         let real: Value = serde_json::from_str(r#"{"json_format_version":[1,0],"smartctl":{"version":[7,4],"pre_release":false,"svn_revision":"5530","platform_info":"x86_64-linux-6.18.44-fc-v553","build_info":"(local build)","argv":["smartctl","--json=c","-a","/dev/vda"],"messages":[{"string":"/dev/vda: Unable to detect device type","severity":"error"}],"exit_status":1},"local_time":{"time_t":1794943880,"asctime":"Tue Nov 17 19:31:20 2026 UTC"}}"#).unwrap();
-        assert!(matches!(outcome_from_json(&real), ReadOutcome::Unsupported(m) if m.contains("Unable to detect device type")));
+        assert!(
+            matches!(outcome_from_json(&real), ReadOutcome::Unsupported(m) if m.contains("Unable to detect device type"))
+        );
 
         let usb = json!({ "smartctl": { "messages": [{ "string": "/dev/sdc: Unknown USB bridge [0x152d:0x0578]", "severity": "error" }] } });
         assert!(matches!(outcome_from_json(&usb), ReadOutcome::Unsupported(m) if m.contains("USB bridge")));

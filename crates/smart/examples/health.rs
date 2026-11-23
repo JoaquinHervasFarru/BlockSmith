@@ -13,7 +13,10 @@ fn main() {
                     ReadOutcome::Read(s) => format!("{:?} · {:?} °C · {:?}", s.overall, s.temperature_c, s.reasons),
                     other => format!("{other:?}"),
                 };
-                println!("{} {:?} {:?} {} B arranque={} → {s}", d.path, d.bus, d.model, d.capacity_bytes, d.is_boot_disk);
+                println!(
+                    "{} {:?} {:?} {} B arranque={} → {s}",
+                    d.path, d.bus, d.model, d.capacity_bytes, d.is_boot_disk
+                );
             }
         }
     }

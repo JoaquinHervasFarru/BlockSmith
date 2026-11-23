@@ -67,7 +67,11 @@ impl CatalogKey {
 
     pub fn compare(&self, other: &Self, binary: bool) -> Ordering {
         self.parent_id.cmp(&other.parent_id).then_with(|| {
-            if binary { compare_binary(&self.name, &other.name) } else { compare_folded(&self.name, &other.name) }
+            if binary {
+                compare_binary(&self.name, &other.name)
+            } else {
+                compare_folded(&self.name, &other.name)
+            }
         })
     }
 }
@@ -107,9 +111,10 @@ impl CommonInfo {
 
     fn write(&self, b: &mut [u8], dates_at: usize) {
         put_be_u16(b, 2, self.flags);
-        for (i, d) in [self.create_date, self.content_mod_date, self.attribute_mod_date, self.access_date, self.backup_date]
-            .into_iter()
-            .enumerate()
+        for (i, d) in
+            [self.create_date, self.content_mod_date, self.attribute_mod_date, self.access_date, self.backup_date]
+                .into_iter()
+                .enumerate()
         {
             put_be_u32(b, dates_at + 4 * i, d);
         }
@@ -183,10 +188,8 @@ impl CatalogRecord {
                 if len > MAX_NAME || b.len() < 10 + 2 * len {
                     return None;
                 }
-                let thread = ThreadRecord {
-                    parent_id: be_u32(b, 4),
-                    name: (0..len).map(|i| be_u16(b, 10 + 2 * i)).collect(),
-                };
+                let thread =
+                    ThreadRecord { parent_id: be_u32(b, 4), name: (0..len).map(|i| be_u16(b, 10 + 2 * i)).collect() };
                 Some(if t == rtype::FOLDER_THREAD { Self::FolderThread(thread) } else { Self::FileThread(thread) })
             }
             _ => None,
@@ -241,10 +244,19 @@ mod tests {
         assert_eq!(CatalogKey::parse(&bytes[2..]).unwrap(), key);
 
         let info = CommonInfo {
-            flags: 0, create_date: 1, content_mod_date: 2, attribute_mod_date: 3, access_date: 4, backup_date: 0,
-            permissions: [0; 16], user_info: [0; 16], finder_info: [0; 16], text_encoding: 0,
+            flags: 0,
+            create_date: 1,
+            content_mod_date: 2,
+            attribute_mod_date: 3,
+            access_date: 4,
+            backup_date: 0,
+            permissions: [0; 16],
+            user_info: [0; 16],
+            finder_info: [0; 16],
+            text_encoding: 0,
         };
-        let folder = CatalogRecord::Folder(FolderRecord { valence: 3, folder_id: 17, info: info.clone(), folder_count: 0 });
+        let folder =
+            CatalogRecord::Folder(FolderRecord { valence: 3, folder_id: 17, info: info.clone(), folder_count: 0 });
         assert_eq!(CatalogRecord::parse(&folder.to_bytes()).unwrap(), folder);
         let thread = CatalogRecord::FileThread(ThreadRecord { parent_id: 17, name: to_hfs_name("a.txt") });
         assert_eq!(CatalogRecord::parse(&thread.to_bytes()).unwrap(), thread);

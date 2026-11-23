@@ -163,7 +163,8 @@ pub fn pack_btree(records: &[(Vec<u8>, Vec<u8>)], spec: &TreeSpec) -> Result<(Ve
     for (l, lvl) in levels.iter().enumerate() {
         for (i, (_, recs)) in lvl.iter().enumerate() {
             // Los nodos de cada nivel (hojas e índices) se enlazan con sus hermanos.
-            let (flink, blink) = (numbers[l].get(i + 1).copied().unwrap_or(0), if i == 0 { 0 } else { numbers[l][i - 1] });
+            let (flink, blink) =
+                (numbers[l].get(i + 1).copied().unwrap_or(0), if i == 0 { 0 } else { numbers[l][i - 1] });
             let desc = NodeDescriptor {
                 flink,
                 blink,
@@ -239,16 +240,25 @@ mod tests {
     use crate::btree::Node;
 
     fn spec(total: u32) -> TreeSpec {
-        TreeSpec { node_size: 512, max_key_length: 10, attributes: attr::BIG_KEYS, key_compare_type: 0, total_nodes: total, max_records_per_leaf: None }
+        TreeSpec {
+            node_size: 512,
+            max_key_length: 10,
+            attributes: attr::BIG_KEYS,
+            key_compare_type: 0,
+            total_nodes: total,
+            max_records_per_leaf: None,
+        }
     }
 
     fn recs(n: u32) -> Vec<(Vec<u8>, Vec<u8>)> {
-        (0..n).map(|i| {
-            let mut k = vec![0, 10, 0, 0];
-            k.extend_from_slice(&i.to_be_bytes());
-            k.extend_from_slice(&[0, 0, 0, 0]);
-            (k, vec![0xAB; 64])
-        }).collect()
+        (0..n)
+            .map(|i| {
+                let mut k = vec![0, 10, 0, 0];
+                k.extend_from_slice(&i.to_be_bytes());
+                k.extend_from_slice(&[0, 0, 0, 0]);
+                (k, vec![0xAB; 64])
+            })
+            .collect()
     }
 
     #[test]

@@ -32,7 +32,8 @@ struct Setup {
 
 fn setup() -> Setup {
     let dir = tempfile::tempdir().unwrap();
-    let mut img = build_volume(&BuildOptions { max_records_per_leaf: Some(6), ..Default::default() }, &sample_tree()).unwrap();
+    let mut img =
+        build_volume(&BuildOptions { max_records_per_leaf: Some(6), ..Default::default() }, &sample_tree()).unwrap();
     apply_damage(&mut img, Damage::FolderAndThreadLost).unwrap();
     let image = dir.path().join("dañada.img");
     std::fs::write(&image, &img).unwrap();
@@ -64,14 +65,22 @@ fn s(p: &Path) -> &str {
 fn healthy(image: &Path) -> bool {
     let dev = RawImage::open(image).unwrap();
     let vol = Volume::open(&dev).unwrap().unwrap();
-    scan_volume(&vol, &mut Quiet).unwrap().result.findings.iter().all(|f| f.severity == blocksmith_fs_core::Severity::Cosmetic)
+    scan_volume(&vol, &mut Quiet)
+        .unwrap()
+        .result
+        .findings
+        .iter()
+        .all(|f| f.severity == blocksmith_fs_core::Severity::Cosmetic)
 }
 
 #[test]
 fn applies_and_verifies() {
     let st = setup();
     let undo = st.dir.path().join("tx.undo");
-    let (code, ev) = run(&["apply", "--target", s(&st.image), "--job", s(&st.job), "--job-sha256", &st.job_sha, "--undo", s(&undo)], &[]);
+    let (code, ev) = run(
+        &["apply", "--target", s(&st.image), "--job", s(&st.job), "--job-sha256", &st.job_sha, "--undo", s(&undo)],
+        &[],
+    );
     assert_eq!(code, 0, "{ev:?}");
     assert!(ev.iter().any(|e| matches!(e, HelperEvent::Progress { .. })));
     assert!(matches!(ev.last(), Some(HelperEvent::Done { verified: true, .. })), "{ev:?}");
@@ -94,7 +103,10 @@ fn rejects_tampered_or_mismatched_jobs() {
     let i = raw.windows(8).position(|w| w == b"\"offset\"").unwrap() + 9;
     raw[i] = if raw[i] == b'1' { b'2' } else { b'1' };
     std::fs::write(&st.job, &raw).unwrap();
-    let (code, ev) = run(&["apply", "--target", s(&st.image), "--job", s(&st.job), "--job-sha256", &st.job_sha, "--undo", s(&undo)], &[]);
+    let (code, ev) = run(
+        &["apply", "--target", s(&st.image), "--job", s(&st.job), "--job-sha256", &st.job_sha, "--undo", s(&undo)],
+        &[],
+    );
     assert_ne!(code, 0);
     assert!(matches!(&ev[0], HelperEvent::Error { message, .. } if message.contains("hash")), "{ev:?}");
     assert!(std::fs::read(&st.image).unwrap() == st.original && !undo.exists());
@@ -103,7 +115,10 @@ fn rejects_tampered_or_mismatched_jobs() {
     let st = setup();
     let other = st.dir.path().join("otra.img");
     std::fs::write(&other, &st.original).unwrap();
-    let (code, ev) = run(&["apply", "--target", s(&other), "--job", s(&st.job), "--job-sha256", &st.job_sha, "--undo", s(&undo)], &[]);
+    let (code, ev) = run(
+        &["apply", "--target", s(&other), "--job", s(&st.job), "--job-sha256", &st.job_sha, "--undo", s(&undo)],
+        &[],
+    );
     assert_ne!(code, 0);
     assert!(matches!(&ev[0], HelperEvent::Error { message, .. } if message.contains("es para")), "{ev:?}");
 }
@@ -119,7 +134,9 @@ fn interrupted_then_rolled_back_or_completed() {
         );
         assert_eq!(code, 3, "{ev:?}");
         assert!(matches!(ev.last(), Some(HelperEvent::Error { interrupted: true, .. })), "{ev:?}");
-        let info = String::from_utf8_lossy(&Command::new(BIN).args(["inspect", "--undo", s(&undo)]).output().unwrap().stdout).to_string();
+        let info =
+            String::from_utf8_lossy(&Command::new(BIN).args(["inspect", "--undo", s(&undo)]).output().unwrap().stdout)
+                .to_string();
         assert!(info.contains("\"state\":\"writing\"") && info.contains("\"written\":2"), "{info}");
         if forward {
             let (code, ev) = run(&["roll-forward", "--target", s(&st.image), "--undo", s(&undo)], &[]);

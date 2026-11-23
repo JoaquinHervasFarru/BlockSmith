@@ -55,7 +55,16 @@ fn clean_volume_passes_both_checkers() {
         assert_eq!(s.result.stats.folders, 8);
         assert_eq!(s.result.info.name.as_deref(), Some("BlockSmith Test"));
         assert_eq!(
-            s.catalog.path_of(*s.catalog.files.iter().find(|(_, (k, _))| k.name.len() == 13 && k.name[0] == b'I' as u16).unwrap().0).unwrap(),
+            s.catalog
+                .path_of(
+                    *s.catalog
+                        .files
+                        .iter()
+                        .find(|(_, (k, _))| k.name.len() == 13 && k.name[0] == b'I' as u16)
+                        .unwrap()
+                        .0
+                )
+                .unwrap(),
             "/Fotos/2023/Viaje Lisboa/IMG_4401.HEIC"
         );
     }
@@ -78,7 +87,11 @@ fn each_damage_is_detected() {
         }
         let s = scan(img);
         let codes: Vec<&str> = s.result.findings.iter().map(|f| f.code.as_str()).collect();
-        assert!(codes.contains(&damage.expected_code()), "{damage:?}: se esperaba {} y se obtuvo {codes:?}", damage.expected_code());
+        assert!(
+            codes.contains(&damage.expected_code()),
+            "{damage:?}: se esperaba {} y se obtuvo {codes:?}",
+            damage.expected_code()
+        );
     }
 }
 
@@ -109,7 +122,12 @@ fn unreadable_node_records_are_rescued() {
 /// Volúmenes creados por mkfs.hfsplus: un productor independiente del nuestro.
 #[test]
 fn reads_mkfs_volumes() {
-    let ok = Command::new("sh").arg("-c").arg("command -v mkfs.hfsplus").output().map(|o| o.status.success()).unwrap_or(false);
+    let ok = Command::new("sh")
+        .arg("-c")
+        .arg("command -v mkfs.hfsplus")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
     if !ok {
         eprintln!("mkfs.hfsplus no disponible: test omitido");
         return;
@@ -132,7 +150,12 @@ fn detects_broken_index_sibling_links() {
     use blocksmith_fs_hfsplus::fixtures::Entry;
     use blocksmith_fs_hfsplus::volume_header::VolumeHeader;
     let tree: Vec<Entry> = (0..40)
-        .map(|d| Entry::folder(&format!("C{d:02}"), (0..60).map(|f| Entry::file(&format!("archivo-{f:03}.txt"), "x")).collect()))
+        .map(|d| {
+            Entry::folder(
+                &format!("C{d:02}"),
+                (0..60).map(|f| Entry::file(&format!("archivo-{f:03}.txt"), "x")).collect(),
+            )
+        })
         .collect();
     let mut img = build_volume(&BuildOptions { size_bytes: 64 * 1024 * 1024, ..Default::default() }, &tree).unwrap();
     let vh = VolumeHeader::parse(&img[1024..1536]).unwrap();
@@ -141,7 +164,11 @@ fn detects_broken_index_sibling_links() {
     let total = vh.catalog_file.logical_size as usize / ns;
     // Primer nodo de índice con hermano siguiente: se rompe su enlace.
     let n = (1..total)
-        .find(|n| img[base + n * ns + 8] == 0 && img[base + n * ns..base + n * ns + 4] != [0, 0, 0, 0] && img[base + n * ns + 10..base + n * ns + 12] != [0, 0])
+        .find(|n| {
+            img[base + n * ns + 8] == 0
+                && img[base + n * ns..base + n * ns + 4] != [0, 0, 0, 0]
+                && img[base + n * ns + 10..base + n * ns + 12] != [0, 0]
+        })
         .expect("el árbol debe tener al menos dos nodos de índice en un nivel");
     img[base + n * ns..base + n * ns + 4].copy_from_slice(&0u32.to_be_bytes());
     let s = scan(img);

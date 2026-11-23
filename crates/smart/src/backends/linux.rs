@@ -101,7 +101,11 @@ impl HealthBackend for LinuxNative {
             let dev_dir = dir.join("device");
             let (model, serial, firmware) = if nvme {
                 // device → controlador (nvme0) con model/serial/firmware_rev.
-                (read_trim(&dev_dir.join("model")), read_trim(&dev_dir.join("serial")), read_trim(&dev_dir.join("firmware_rev")))
+                (
+                    read_trim(&dev_dir.join("model")),
+                    read_trim(&dev_dir.join("serial")),
+                    read_trim(&dev_dir.join("firmware_rev")),
+                )
             } else {
                 let vendor = read_trim(&dev_dir.join("vendor")).filter(|v| v != "ATA");
                 let model = read_trim(&dev_dir.join("model")).map(|m| match &vendor {
@@ -190,17 +194,22 @@ struct SgIoHdr {
 /// CDB de ATA PASS-THROUGH(16) para un subcomando SMART con lectura PIO de un sector.
 pub fn ata_smart_cdb(feature: u8) -> [u8; 16] {
     [
-        0x85,       // ATA PASS-THROUGH (16)
-        4 << 1,     // protocolo PIO Data-In
-        0x0E,       // t_dir = desde el dispositivo, byt_blok = bloques, t_length = campo count
-        0, feature, // features (0xD0 datos, 0xD1 umbrales)
-        0, 1,       // count = 1 sector
-        0, 0,       // LBA low
-        0, 0x4F,    // LBA mid: firma SMART
-        0, 0xC2,    // LBA high: firma SMART
-        0,          // device
-        0xB0,       // comando SMART
-        0,          // control
+        0x85,   // ATA PASS-THROUGH (16)
+        4 << 1, // protocolo PIO Data-In
+        0x0E,   // t_dir = desde el dispositivo, byt_blok = bloques, t_length = campo count
+        0,
+        feature, // features (0xD0 datos, 0xD1 umbrales)
+        0,
+        1, // count = 1 sector
+        0,
+        0, // LBA low
+        0,
+        0x4F, // LBA mid: firma SMART
+        0,
+        0xC2, // LBA high: firma SMART
+        0,    // device
+        0xB0, // comando SMART
+        0,    // control
     ]
 }
 
@@ -251,13 +260,20 @@ fn sg_ata_smart(file: &File, feature: u8) -> Result<Vec<u8>, AtaError> {
     // Un CHECK CONDITION con sense «ILLEGAL REQUEST» indica que el dispositivo o el
     // puente no entiende el comando.
     if hdr.status != 0 || hdr.host_status != 0 || (hdr.driver_status & 0x0F) != 0 {
-        let key = if hdr.sb_len_wr > 2 && sense[0] & 0x7F >= 0x72 { sense[1] & 0x0F } else { sense.get(2).copied().unwrap_or(0) & 0x0F };
+        let key = if hdr.sb_len_wr > 2 && sense[0] & 0x7F >= 0x72 {
+            sense[1] & 0x0F
+        } else {
+            sense.get(2).copied().unwrap_or(0) & 0x0F
+        };
         if key == 0x05 {
             return Err(AtaError::Unsupported("el dispositivo o su puente USB no transmite S.M.A.R.T.".into()));
         }
         // Algunos puentes devuelven CHECK CONDITION con los datos correctos: se valida la página.
         if !ata::checksum_ok(&data) || data.iter().all(|b| *b == 0) {
-            return Err(AtaError::Failed(format!("comando SMART rechazado (estado {:#x}, sense {:#x})", hdr.status, key)));
+            return Err(AtaError::Failed(format!(
+                "comando SMART rechazado (estado {:#x}, sense {:#x})",
+                hdr.status, key
+            )));
         }
     }
     Ok(data)
@@ -346,10 +362,12 @@ fn read_nvme(file: &File) -> ReadOutcome {
     if rc < 0 {
         let err = std::io::Error::last_os_error();
         return match err.raw_os_error() {
-            Some(libc::EACCES) | Some(libc::EPERM) => {
-                ReadOutcome::PermissionDenied("leer el registro de salud NVMe requiere permisos de administrador".into())
+            Some(libc::EACCES) | Some(libc::EPERM) => ReadOutcome::PermissionDenied(
+                "leer el registro de salud NVMe requiere permisos de administrador".into(),
+            ),
+            Some(libc::ENOTTY) | Some(libc::EINVAL) => {
+                ReadOutcome::Unsupported("el controlador no admite comandos NVMe de administración".into())
             }
-            Some(libc::ENOTTY) | Some(libc::EINVAL) => ReadOutcome::Unsupported("el controlador no admite comandos NVMe de administración".into()),
             _ => ReadOutcome::Failed(format!("ioctl NVMe falló: {err}")),
         };
     }
@@ -423,7 +441,10 @@ mod tests {
         let devs = LinuxNative::with_sysfs(root.path()).devices().unwrap();
         assert_eq!(devs.len(), 2, "{devs:?}");
         let nvme = &devs[0];
-        assert_eq!((nvme.path.as_str(), nvme.bus, nvme.serial.as_deref()), ("/dev/nvme0n1", Bus::Nvme, Some("S5GXNF0R123456")));
+        assert_eq!(
+            (nvme.path.as_str(), nvme.bus, nvme.serial.as_deref()),
+            ("/dev/nvme0n1", Bus::Nvme, Some("S5GXNF0R123456"))
+        );
         let sda = &devs[1];
         assert_eq!(sda.model.as_deref(), Some("WDC WD40EFRX-68N"));
         assert_eq!(sda.serial.as_deref(), Some("WX42D81F7KLP"));

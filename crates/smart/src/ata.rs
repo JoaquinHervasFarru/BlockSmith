@@ -149,7 +149,12 @@ mod tests {
     #[test]
     fn parses_data_and_threshold_pages() {
         let data = build_page(
-            &[(1, 0x000F, 200, 200, 0), (5, 0x0033, 199, 199, 24), (9, 0x0032, 57, 57, 31_870), (194, 0x0022, 110, 101, 0x0000_2D00_1B00_0028)],
+            &[
+                (1, 0x000F, 200, 200, 0),
+                (5, 0x0033, 199, 199, 24),
+                (9, 0x0032, 57, 57, 31_870),
+                (194, 0x0022, 110, 101, 0x0000_2D00_1B00_0028),
+            ],
             false,
         );
         let thr = build_page(&[(1, 0, 51, 0, 0), (5, 0, 140, 0, 0), (9, 0, 0, 0, 0), (194, 0, 0, 0, 0)], true);
@@ -157,7 +162,10 @@ mod tests {
         let attrs = parse(&data, Some(&thr)).unwrap();
         assert_eq!(attrs.len(), 4);
         let r = &attrs[1];
-        assert_eq!((r.id, r.name.as_str(), r.value, r.threshold, r.raw, r.flags), (5, "Reallocated_Sector_Ct", 199, 140, 24, 0x33));
+        assert_eq!(
+            (r.id, r.name.as_str(), r.value, r.threshold, r.raw, r.flags),
+            (5, "Reallocated_Sector_Ct", 199, 140, 24, 0x33)
+        );
         assert_eq!(power_on_hours(&attrs), Some(31_870));
         // Temperatura: byte bajo (40 °C) aunque los bytes altos traigan mínimos/máximos.
         assert_eq!(temperature(&attrs), Some(40));

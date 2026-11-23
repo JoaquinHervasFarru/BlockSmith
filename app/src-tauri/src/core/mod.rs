@@ -6,8 +6,8 @@
 
 pub mod dto;
 pub mod health;
-pub mod repair;
 pub mod probe;
+pub mod repair;
 pub mod report;
 pub mod snapshot;
 #[cfg(test)]
@@ -105,7 +105,10 @@ fn capabilities(fs_type: &str) -> CapabilitiesDto {
             recover: "no",
             rebuild: "yes",
             write_in_place: "no",
-            note: Some("La reconstrucción se exporta a una imagen nueva; la escritura directa llega en una fase posterior.".into()),
+            note: Some(
+                "La reconstrucción se exporta a una imagen nueva; la escritura directa llega en una fase posterior."
+                    .into(),
+            ),
         },
         other => CapabilitiesDto {
             scan: "no",
@@ -187,10 +190,16 @@ impl Core {
 
     /// Registra una imagen (o devuelve la ya registrada) y detecta sus volúmenes.
     pub fn open_image(&self, path: &Path) -> CoreResult<SourceDto> {
-        let path = path.canonicalize().map_err(|e| CoreError::Invalid(format!("no se puede abrir {}: {e}", path.display())))?;
+        let path = path
+            .canonicalize()
+            .map_err(|e| CoreError::Invalid(format!("no se puede abrir {}: {e}", path.display())))?;
         let path_str = path.to_string_lossy().to_string();
         // Ojo: la conexión se libera antes de llamar a get_source (el Mutex no es reentrante).
-        let existing = self.db.conn().query_row("SELECT id FROM sources WHERE path = ?1", [&path_str], |r| r.get::<_, i64>(0)).optional()?;
+        let existing = self
+            .db
+            .conn()
+            .query_row("SELECT id FROM sources WHERE path = ?1", [&path_str], |r| r.get::<_, i64>(0))
+            .optional()?;
         if let Some(id) = existing {
             return self.get_source(id);
         }
@@ -202,7 +211,8 @@ impl Core {
             other => other.into(),
         })?;
         let raw = blocksmith_io::RawImage::open(&path)?;
-        let is_device = blocksmith_txwriter::device::assess(&path).kind == Some(blocksmith_txwriter::TargetKind::BlockDevice);
+        let is_device =
+            blocksmith_txwriter::device::assess(&path).kind == Some(blocksmith_txwriter::TargetKind::BlockDevice);
         let kind = if is_device {
             "device"
         } else if blocksmith_io::udif::has_koly_trailer(&raw)? {
@@ -221,7 +231,10 @@ impl Core {
         let source_id = tx.last_insert_rowid();
         tx.execute(
             "INSERT OR REPLACE INTO settings (key, value_json) VALUES (?1, ?2)",
-            params![format!("scheme:{source_id}"), serde_json::to_string(probe::scheme_label(scheme)).unwrap_or_default()],
+            params![
+                format!("scheme:{source_id}"),
+                serde_json::to_string(probe::scheme_label(scheme)).unwrap_or_default()
+            ],
         )?;
         for v in vols {
             tx.execute(
@@ -269,7 +282,9 @@ impl Core {
             .optional()?
             .ok_or_else(|| CoreError::NotFound(format!("origen {id} no encontrado")))?;
         src.partition_scheme = conn
-            .query_row("SELECT value_json FROM settings WHERE key = ?1", [format!("scheme:{id}")], |r| r.get::<_, String>(0))
+            .query_row("SELECT value_json FROM settings WHERE key = ?1", [format!("scheme:{id}")], |r| {
+                r.get::<_, String>(0)
+            })
             .optional()?
             .and_then(|j| serde_json::from_str(&j).ok())
             .unwrap_or_else(|| "none".into());
@@ -383,11 +398,12 @@ impl Core {
         match self.scan_inner(volume_id, session_id, &loc, progress) {
             Ok(()) => Ok(session_id),
             Err(e) => {
-                let status = if matches!(e, CoreError::Cancelled | CoreError::Fs(blocksmith_fs_core::FsError::Cancelled)) {
-                    "cancelled"
-                } else {
-                    "failed"
-                };
+                let status =
+                    if matches!(e, CoreError::Cancelled | CoreError::Fs(blocksmith_fs_core::FsError::Cancelled)) {
+                        "cancelled"
+                    } else {
+                        "failed"
+                    };
                 self.db.conn().execute(
                     "UPDATE sessions SET status = ?1, finished_at = ?2, error = ?3 WHERE id = ?4",
                     params![status, now(), e.to_string(), session_id],
@@ -397,10 +413,17 @@ impl Core {
         }
     }
 
-    fn scan_inner(&self, volume_id: i64, session_id: i64, loc: &VolumeLocation, progress: &mut dyn Progress) -> CoreResult<()> {
+    fn scan_inner(
+        &self,
+        volume_id: i64,
+        session_id: i64,
+        loc: &VolumeLocation,
+        progress: &mut dyn Progress,
+    ) -> CoreResult<()> {
         let dev = Self::open_location(loc)?;
         let slice = Slice::new(dev.as_ref(), loc.offset, loc.length)?;
-        let vol = Volume::open(&slice)?.ok_or_else(|| CoreError::Invalid("ya no hay un volumen HFS+ en esa posición".into()))?;
+        let vol = Volume::open(&slice)?
+            .ok_or_else(|| CoreError::Invalid("ya no hay un volumen HFS+ en esa posición".into()))?;
         let scan = scan_volume(&vol, progress)?;
         let snap = TreeSnapshot { root_id: 2, entries: scan.catalog.entries() };
         let snap_path = self.session_tree_path(session_id);
@@ -419,8 +442,14 @@ impl Core {
         tx.execute(
             "UPDATE volumes SET name = COALESCE(?1, name), file_count = ?2, folder_count = ?3, case_sensitive = ?4,
                  journal_state = CASE WHEN journaled = 1 THEN ?5 ELSE journal_state END WHERE id = ?6",
-            params![r.info.name, r.stats.files as i64, r.stats.folders as i64, r.info.case_sensitive,
-                if pending { "pending" } else { "clean" }, volume_id],
+            params![
+                r.info.name,
+                r.stats.files as i64,
+                r.stats.folders as i64,
+                r.info.case_sensitive,
+                if pending { "pending" } else { "clean" },
+                volume_id
+            ],
         )?;
         tx.commit()?;
         Ok(())
@@ -478,8 +507,9 @@ impl Core {
                 _ => s.counts.cosmetic = n,
             }
         }
-        s.latest_rebuild_id =
-            conn.query_row("SELECT id FROM rebuilds WHERE session_id = ?1 ORDER BY id DESC LIMIT 1", [id], |r| r.get(0)).optional()?;
+        s.latest_rebuild_id = conn
+            .query_row("SELECT id FROM rebuilds WHERE session_id = ?1 ORDER BY id DESC LIMIT 1", [id], |r| r.get(0))
+            .optional()?;
         Ok(s)
     }
 
@@ -500,7 +530,8 @@ impl Core {
         let loc = self.location(volume_id)?;
         let dev = Self::open_location(&loc)?;
         let slice = Slice::new(dev.as_ref(), loc.offset, loc.length)?;
-        let vol = Volume::open(&slice)?.ok_or_else(|| CoreError::Invalid("ya no hay un volumen HFS+ en esa posición".into()))?;
+        let vol = Volume::open(&slice)?
+            .ok_or_else(|| CoreError::Invalid("ya no hay un volumen HFS+ en esa posición".into()))?;
         let scan = scan_volume(&vol, progress)?;
         progress.phase("Plan de reconstrucción");
         Ok(plan_rebuild(&vol, &scan)?)
@@ -524,14 +555,23 @@ impl Core {
                 "INSERT INTO diff_entries (rebuild_id, cnid, change, old_path, new_path, item_type, size_bytes, note) VALUES (?1,?2,?3,?4,?5,?6,?7,?8)",
             )?;
             for d in &plan.diff {
-                ins.execute(params![rebuild_id, d.object_id as i64, change_str(d.change), d.old_path, d.new_path,
-                    if d.is_folder { "folder" } else { "file" }, d.size_bytes as i64, d.note])?;
+                ins.execute(params![
+                    rebuild_id,
+                    d.object_id as i64,
+                    change_str(d.change),
+                    d.old_path,
+                    d.new_path,
+                    if d.is_folder { "folder" } else { "file" },
+                    d.size_bytes as i64,
+                    d.note
+                ])?;
             }
         }
         tx.execute("UPDATE sessions SET status = 'rebuilt' WHERE id = ?1 AND status = 'scanned'", [session_id])?;
         tx.commit()?;
         drop(conn);
-        TreeSnapshot { root_id: plan.root_id, entries: plan.tree_after.clone() }.save(&self.rebuild_tree_path(rebuild_id))?;
+        TreeSnapshot { root_id: plan.root_id, entries: plan.tree_after.clone() }
+            .save(&self.rebuild_tree_path(rebuild_id))?;
         self.plans.lock().expect("caché de planes").insert(rebuild_id, Arc::new(plan));
         Ok(rebuild_id)
     }
@@ -569,7 +609,9 @@ impl Core {
             )
             .optional()?
             .ok_or_else(|| CoreError::NotFound(format!("reconstrucción {id} no encontrada")))?;
-        let mut st = conn.prepare("SELECT change, COUNT(*) FROM diff_entries WHERE rebuild_id = ?1 GROUP BY change ORDER BY COUNT(*) DESC")?;
+        let mut st = conn.prepare(
+            "SELECT change, COUNT(*) FROM diff_entries WHERE rebuild_id = ?1 GROUP BY change ORDER BY COUNT(*) DESC",
+        )?;
         r.changes = st
             .query_map([id], |row| Ok(ChangeCount { change: row.get(0)?, count: row.get(1)? }))?
             .collect::<Result<_, _>>()?;
@@ -692,7 +734,8 @@ impl Core {
         progress.phase("Verificando la imagen reparada");
         let fixed = open_image(out)?;
         let slice = Slice::new(fixed.as_ref(), loc.offset, loc.length)?;
-        let vol = Volume::open(&slice)?.ok_or_else(|| CoreError::Invalid("la imagen exportada no contiene el volumen".into()))?;
+        let vol = Volume::open(&slice)?
+            .ok_or_else(|| CoreError::Invalid("la imagen exportada no contiene el volumen".into()))?;
         let verify = scan_volume(&vol, progress)?;
         let remaining: Vec<FindingDto> = verify
             .result
@@ -710,7 +753,9 @@ impl Core {
         )?;
         self.db.conn().execute("UPDATE sessions SET status = 'exported' WHERE id = ?1", [rebuild.session_id])?;
         if verified {
-            self.db.conn().execute("UPDATE findings SET fixed_in_rebuild = 1 WHERE session_id = ?1", [rebuild.session_id])?;
+            self.db
+                .conn()
+                .execute("UPDATE findings SET fixed_in_rebuild = 1 WHERE session_id = ?1", [rebuild.session_id])?;
         }
         Ok(ExportResultDto {
             rebuild_id,
@@ -749,15 +794,29 @@ impl Core {
             "INSERT INTO reports (session_id, format, path, generated_at) VALUES (?1, ?2, ?3, ?4)",
             params![session_id, format, path_str, generated],
         )?;
-        Ok(ReportDto { id: self.db.conn().last_insert_rowid(), session_id, format: format.into(), path: path_str, generated_at: generated })
+        Ok(ReportDto {
+            id: self.db.conn().last_insert_rowid(),
+            session_id,
+            format: format.into(),
+            path: path_str,
+            generated_at: generated,
+        })
     }
 
     pub fn reports(&self, session_id: i64) -> CoreResult<Vec<ReportDto>> {
         let conn = self.db.conn();
-        let mut st = conn.prepare("SELECT id, session_id, format, path, generated_at FROM reports WHERE session_id = ?1 ORDER BY id DESC")?;
+        let mut st = conn.prepare(
+            "SELECT id, session_id, format, path, generated_at FROM reports WHERE session_id = ?1 ORDER BY id DESC",
+        )?;
         let rows = st
             .query_map([session_id], |r| {
-                Ok(ReportDto { id: r.get(0)?, session_id: r.get(1)?, format: r.get(2)?, path: r.get(3)?, generated_at: r.get(4)? })
+                Ok(ReportDto {
+                    id: r.get(0)?,
+                    session_id: r.get(1)?,
+                    format: r.get(2)?,
+                    path: r.get(3)?,
+                    generated_at: r.get(4)?,
+                })
             })?
             .collect::<Result<_, _>>()?;
         Ok(rows)

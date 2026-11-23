@@ -62,7 +62,11 @@ pub fn evaluate(prev: Option<&HealthSnapshot>, cur: &HealthSnapshot, rules: &[Ru
                     let delta = num(t, "delta", 1);
                     if now >= before + delta.max(1) {
                         let sev = if now - before >= 50 { "critical" } else { "minor" };
-                        push(&r.rule, sev, format!("Sectores reasignados: {before} → {now} desde la lectura anterior."));
+                        push(
+                            &r.rule,
+                            sev,
+                            format!("Sectores reasignados: {before} → {now} desde la lectura anterior."),
+                        );
                     }
                 }
             }
@@ -76,13 +80,21 @@ pub fn evaluate(prev: Option<&HealthSnapshot>, cur: &HealthSnapshot, rules: &[Ru
                 if let Some(n) = &cur.nvme {
                     let bits = n.critical_warning & (num(t, "mask", 0xFF) as u8);
                     if bits != 0 {
-                        push(&r.rule, "critical", format!("Aviso crítico: {}.", nvme::warning_reasons(bits).join(", ")));
+                        push(
+                            &r.rule,
+                            "critical",
+                            format!("Aviso crítico: {}.", nvme::warning_reasons(bits).join(", ")),
+                        );
                     }
                 }
             }
             "NVME_WEAR" => {
                 if let Some(p) = cur.percentage_used.filter(|p| *p as u64 >= num(t, "percentage_used", 90)) {
-                    push(&r.rule, if p >= 100 { "critical" } else { "minor" }, format!("Vida útil estimada consumida: {p} %."));
+                    push(
+                        &r.rule,
+                        if p >= 100 { "critical" } else { "minor" },
+                        format!("Vida útil estimada consumida: {p} %."),
+                    );
                 }
             }
             "TEMP_HIGH" => {
@@ -119,13 +131,36 @@ mod tests {
 
     fn ata(realloc: u64, pending: u64, temp: i16, value5: u8) -> HealthSnapshot {
         let attrs = vec![
-            Attribute { id: 5, name: "Reallocated_Sector_Ct".into(), flags: 0, value: value5, worst: value5, threshold: 10, raw: realloc },
-            Attribute { id: 197, name: "Current_Pending_Sector".into(), flags: 0, value: 100, worst: 100, threshold: 0, raw: pending },
+            Attribute {
+                id: 5,
+                name: "Reallocated_Sector_Ct".into(),
+                flags: 0,
+                value: value5,
+                worst: value5,
+                threshold: 10,
+                raw: realloc,
+            },
+            Attribute {
+                id: 197,
+                name: "Current_Pending_Sector".into(),
+                flags: 0,
+                value: 100,
+                worst: 100,
+                threshold: 0,
+                raw: pending,
+            },
         ];
         let (overall, reasons) = evaluate_ata(&attrs);
         HealthSnapshot {
-            protocol: Protocol::Ata, overall, temperature_c: Some(temp), power_on_hours: None, percentage_used: None,
-            attributes: attrs, nvme: None, source: "prueba".into(), reasons,
+            protocol: Protocol::Ata,
+            overall,
+            temperature_c: Some(temp),
+            power_on_hours: None,
+            percentage_used: None,
+            attributes: attrs,
+            nvme: None,
+            source: "prueba".into(),
+            reasons,
         }
     }
 
@@ -143,8 +178,13 @@ mod tests {
         assert!(evaluate(None, &ata(24, 0, 38, 100), &rules()).iter().all(|a| a.rule != "REALLOCATED_INCREASE"));
         let a = evaluate(Some(&ata(10, 0, 38, 100)), &ata(24, 0, 38, 100), &rules());
         let r = a.iter().find(|a| a.rule == "REALLOCATED_INCREASE").unwrap();
-        assert_eq!((r.severity, r.message.as_str()), ("minor", "Sectores reasignados: 10 → 24 desde la lectura anterior."));
-        assert!(evaluate(Some(&ata(24, 0, 38, 100)), &ata(24, 0, 38, 100), &rules()).iter().all(|a| a.rule != "REALLOCATED_INCREASE"));
+        assert_eq!(
+            (r.severity, r.message.as_str()),
+            ("minor", "Sectores reasignados: 10 → 24 desde la lectura anterior.")
+        );
+        assert!(evaluate(Some(&ata(24, 0, 38, 100)), &ata(24, 0, 38, 100), &rules())
+            .iter()
+            .all(|a| a.rule != "REALLOCATED_INCREASE"));
     }
 
     #[test]
@@ -161,10 +201,23 @@ mod tests {
 
     #[test]
     fn nvme_rules() {
-        let n = NvmeHealth { critical_warning: 0b10, available_spare: 100, spare_threshold: 10, percentage_used: 93, ..Default::default() };
+        let n = NvmeHealth {
+            critical_warning: 0b10,
+            available_spare: 100,
+            spare_threshold: 10,
+            percentage_used: 93,
+            ..Default::default()
+        };
         let s = HealthSnapshot {
-            protocol: Protocol::Nvme, overall: Overall::Failing, temperature_c: Some(45), power_on_hours: None,
-            percentage_used: Some(93), attributes: vec![], nvme: Some(n), source: "prueba".into(), reasons: vec!["temperatura fuera de rango".into()],
+            protocol: Protocol::Nvme,
+            overall: Overall::Failing,
+            temperature_c: Some(45),
+            power_on_hours: None,
+            percentage_used: Some(93),
+            attributes: vec![],
+            nvme: Some(n),
+            source: "prueba".into(),
+            reasons: vec!["temperatura fuera de rango".into()],
         };
         let a = evaluate(None, &s, &rules());
         assert_eq!(codes(&a), vec!["SMART_FAILING", "NVME_CRITICAL_WARNING", "NVME_WEAR"]);

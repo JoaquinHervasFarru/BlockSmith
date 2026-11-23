@@ -97,9 +97,7 @@ impl Node {
         }
         let offs: Vec<usize> = (0..=n).map(|i| be_u16(&data, size - 2 * (i + 1)) as usize).collect();
         let table_start = size - 2 * (n + 1);
-        if offs[0] != DESCRIPTOR_SIZE
-            || offs.windows(2).any(|w| w[1] < w[0] || w[0] % 2 != 0)
-            || offs[n] > table_start
+        if offs[0] != DESCRIPTOR_SIZE || offs.windows(2).any(|w| w[1] < w[0] || w[0] % 2 != 0) || offs[n] > table_start
         {
             return Err(NodeError::BadOffsets);
         }

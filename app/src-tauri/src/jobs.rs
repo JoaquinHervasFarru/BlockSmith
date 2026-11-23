@@ -94,10 +94,17 @@ impl JobManager {
             .spawn(move || {
                 let outcome = work(&mut progress);
                 let cancelled = progress.is_cancelled()
-                    || matches!(&outcome, Err(CoreError::Cancelled) | Err(CoreError::Fs(blocksmith_fs_core::FsError::Cancelled)));
+                    || matches!(
+                        &outcome,
+                        Err(CoreError::Cancelled) | Err(CoreError::Fs(blocksmith_fs_core::FsError::Cancelled))
+                    );
                 let event = match outcome {
-                    Ok(result) => FinishedEvent { job_id, kind, ok: true, cancelled: false, result: Some(result), error: None },
-                    Err(e) => FinishedEvent { job_id, kind, ok: false, cancelled, result: None, error: Some(e.to_string()) },
+                    Ok(result) => {
+                        FinishedEvent { job_id, kind, ok: true, cancelled: false, result: Some(result), error: None }
+                    }
+                    Err(e) => {
+                        FinishedEvent { job_id, kind, ok: false, cancelled, result: None, error: Some(e.to_string()) }
+                    }
                 };
                 let _ = app.emit(EVENT_FINISHED, event);
             })

@@ -20,7 +20,8 @@ fn env() -> Env {
 }
 
 fn image(env: &Env, name: &str, damage: Option<Damage>) -> PathBuf {
-    let mut img = build_volume(&BuildOptions { max_records_per_leaf: Some(6), ..Default::default() }, &sample_tree()).unwrap();
+    let mut img =
+        build_volume(&BuildOptions { max_records_per_leaf: Some(6), ..Default::default() }, &sample_tree()).unwrap();
     if let Some(d) = damage {
         apply_damage(&mut img, d).unwrap();
     }
@@ -204,13 +205,19 @@ fn health_flow_with_replay_backend() {
     let mut rules = e.core.alert_rules().unwrap();
     let t = rules.iter_mut().find(|r| r.rule == "TEMP_HIGH").unwrap();
     t.threshold = serde_json::json!({ "celsius": 70 });
-    assert_eq!(e.core.set_alert_rule(t).unwrap().iter().find(|r| r.rule == "TEMP_HIGH").unwrap().threshold["celsius"], 70);
+    assert_eq!(
+        e.core.set_alert_rule(t).unwrap().iter().find(|r| r.rule == "TEMP_HIGH").unwrap().threshold["celsius"],
+        70
+    );
     t.threshold = serde_json::json!({ "celsius": -5 });
     assert!(e.core.set_alert_rule(t).is_err());
     let _ = repo::POLL_KEY;
 
     // Ajustes antiguos sin el campo nuevo se siguen leyendo (con el valor por defecto).
-    e.core.db().set_setting("app", r#"{"outputDir":"/x","theme":"dark","logLevel":"info","exportEncryptedByDefault":true}"#).unwrap();
+    e.core
+        .db()
+        .set_setting("app", r#"{"outputDir":"/x","theme":"dark","logLevel":"info","exportEncryptedByDefault":true}"#)
+        .unwrap();
     let s = e.core.settings().unwrap();
     assert_eq!((s.theme.as_str(), s.health_check_on_start), ("dark", true));
 }

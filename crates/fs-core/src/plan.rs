@@ -106,7 +106,12 @@ mod tests {
     fn writes_are_ordered_by_phase() {
         let w = |o, phase| BlockWrite { offset: o, data: vec![], phase, label: String::new() };
         let plan = RebuildPlan {
-            writes: vec![w(0, WritePhase::Commit), w(5, WritePhase::Finalize), w(10, WritePhase::Data), w(20, WritePhase::Data)],
+            writes: vec![
+                w(0, WritePhase::Commit),
+                w(5, WritePhase::Finalize),
+                w(10, WritePhase::Data),
+                w(20, WritePhase::Data),
+            ],
             ..Default::default()
         };
         let order: Vec<u64> = plan.ordered_writes().map(|w| w.offset).collect();

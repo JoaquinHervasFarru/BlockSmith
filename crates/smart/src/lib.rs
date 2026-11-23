@@ -167,14 +167,21 @@ pub fn evaluate_ata(attrs: &[Attribute]) -> (Overall, Vec<String>) {
             reasons.push(format!("{} {what}", ata::counter(a)));
         }
     }
-    if reasons.is_empty() { (Overall::Passed, reasons) } else { (Overall::Warning, reasons) }
+    if reasons.is_empty() {
+        (Overall::Passed, reasons)
+    } else {
+        (Overall::Warning, reasons)
+    }
 }
 
 /// Evaluación de un disco NVMe a partir de su registro de salud.
 pub fn evaluate_nvme(n: &NvmeHealth) -> (Overall, Vec<String>) {
     let mut reasons: Vec<String> = nvme::warning_reasons(n.critical_warning);
     if n.available_spare < n.spare_threshold && n.spare_threshold > 0 {
-        reasons.push(format!("bloques de reserva por debajo del umbral ({} % < {} %)", n.available_spare, n.spare_threshold));
+        reasons.push(format!(
+            "bloques de reserva por debajo del umbral ({} % < {} %)",
+            n.available_spare, n.spare_threshold
+        ));
     }
     if !reasons.is_empty() {
         return (Overall::Failing, reasons);
@@ -185,7 +192,11 @@ pub fn evaluate_nvme(n: &NvmeHealth) -> (Overall, Vec<String>) {
     if n.media_errors > 0 {
         reasons.push(format!("{} errores de integridad de datos", n.media_errors));
     }
-    if reasons.is_empty() { (Overall::Passed, reasons) } else { (Overall::Warning, reasons) }
+    if reasons.is_empty() {
+        (Overall::Passed, reasons)
+    } else {
+        (Overall::Warning, reasons)
+    }
 }
 
 #[cfg(test)]
@@ -223,8 +234,15 @@ mod tests {
     #[test]
     fn stable_key_prefers_serial() {
         let mut d = DeviceInfo {
-            path: "/dev/sda".into(), model: None, serial: Some(" WX42 ".into()), firmware: None, bus: Bus::Sata,
-            capacity_bytes: 0, removable: false, rotational: None, is_boot_disk: false,
+            path: "/dev/sda".into(),
+            model: None,
+            serial: Some(" WX42 ".into()),
+            firmware: None,
+            bus: Bus::Sata,
+            capacity_bytes: 0,
+            removable: false,
+            rotational: None,
+            is_boot_disk: false,
         };
         assert_eq!(d.stable_key(), "serial:WX42");
         d.serial = None;

@@ -23,7 +23,9 @@ use blocksmith_fs_core::{BlockWrite, DiffChange, DiffEntry, FsError, FsResult, R
 use crate::bitmap::AllocationBitmap;
 use crate::btree::attr as battr;
 use crate::btree::pack::{map_nodes_needed, nodes_needed, pack_btree, tree_nodes, TreeSpec};
-use crate::catalog::{cnid, CatalogKey, CatalogRecord, FileRecord, FolderRecord, ThreadRecord, FILE_THREAD_EXISTS, FOLDER_HAS_COUNT};
+use crate::catalog::{
+    cnid, CatalogKey, CatalogRecord, FileRecord, FolderRecord, ThreadRecord, FILE_THREAD_EXISTS, FOLDER_HAS_COUNT,
+};
 use crate::check::HfsScan;
 use crate::extents::{ExtentKey, FORK_DATA, FORK_RSRC};
 use crate::fixtures::info as default_info;
@@ -197,11 +199,14 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
                 .get(&cnid::ROOT_FOLDER)
                 .map(|(_, t)| t.name.clone())
                 .unwrap_or_else(|| to_hfs_name("Sin título"));
-            items.insert(cnid::ROOT_FOLDER, Item {
-                parent: cnid::ROOT_PARENT,
-                name: name.clone(),
-                body: Body::Folder(new_folder(cnid::ROOT_FOLDER, now)),
-            });
+            items.insert(
+                cnid::ROOT_FOLDER,
+                Item {
+                    parent: cnid::ROOT_PARENT,
+                    name: name.clone(),
+                    body: Body::Folder(new_folder(cnid::ROOT_FOLDER, now)),
+                },
+            );
             diff.push(DiffEntry {
                 object_id: cnid::ROOT_FOLDER as u64,
                 change: DiffChange::Recovered,
@@ -227,7 +232,10 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
                 continue;
             }
             if let Some((true, t)) = cat.threads.get(&p) {
-                items.insert(p, Item { parent: t.parent_id, name: t.name.clone(), body: Body::Folder(new_folder(p, now)) });
+                items.insert(
+                    p,
+                    Item { parent: t.parent_id, name: t.name.clone(), body: Body::Folder(new_folder(p, now)) },
+                );
                 diff.push(DiffEntry {
                     object_id: p as u64,
                     change: DiffChange::Recovered,
@@ -252,17 +260,16 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
                 return true;
             }
             match items.get(&id) {
-                Some(it) if items.get(&it.parent).is_some_and(Item::is_folder) || it.parent == cnid::ROOT_FOLDER => id = it.parent,
+                Some(it) if items.get(&it.parent).is_some_and(Item::is_folder) || it.parent == cnid::ROOT_FOLDER => {
+                    id = it.parent
+                }
                 _ => return false,
             }
         }
         false
     };
-    let stranded: Vec<u32> = items
-        .keys()
-        .copied()
-        .filter(|id| *id != cnid::ROOT_FOLDER && !reaches_root(&items, *id))
-        .collect();
+    let stranded: Vec<u32> =
+        items.keys().copied().filter(|id| *id != cnid::ROOT_FOLDER && !reaches_root(&items, *id)).collect();
     // Solo se mueven los elementos «cabeza» (cuyo padre no está también varado), conservando sus subárboles.
     let stranded_set: std::collections::HashSet<u32> = stranded.iter().copied().collect();
     let heads: Vec<u32> = stranded
@@ -374,7 +381,7 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
 
     // Archivos: truncado de extents inválidos y detección de bloques compartidos.
     let mut clones: Vec<(u32, u8, usize, Extent)> = Vec::new(); // (cnid, fork, índice de extent, extent original)
-    // Tramos de archivos ya asignados, para saber con quién se comparte un bloque.
+                                                                // Tramos de archivos ya asignados, para saber con quién se comparte un bloque.
     let mut owners: Vec<(u32, u32, u32)> = Vec::new(); // (inicio, fin exclusivo, cnid)
     let mut shared_with: HashMap<u32, Vec<u32>> = HashMap::new();
     let mut file_extents: HashMap<(u32, u8), Vec<Extent>> = HashMap::new();
@@ -414,7 +421,8 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
                 let shared = (e.start_block..e.start_block + e.block_count).any(|b| used.is_set(b));
                 if shared {
                     let end = e.start_block + e.block_count;
-                    let others: Vec<u32> = owners.iter().filter(|o| o.0 < end && e.start_block < o.1).map(|o| o.2).collect();
+                    let others: Vec<u32> =
+                        owners.iter().filter(|o| o.0 < end && e.start_block < o.1).map(|o| o.2).collect();
                     for o in &others {
                         shared_with.entry(*o).or_default().push(*id);
                     }
@@ -440,7 +448,12 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
     for (id, ft, i, e) in clones {
         let new = alloc.alloc(e.block_count, 1)?[0];
         let bytes = vol.dev.read_vec(vol.offset + e.start_block as u64 * bs, (e.block_count as u64 * bs) as usize)?;
-        data_writes.push(BlockWrite { offset: new.start_block as u64 * bs, data: bytes, phase: WritePhase::Data, label: format!("copia de datos del CNID {id}") });
+        data_writes.push(BlockWrite {
+            offset: new.start_block as u64 * bs,
+            data: bytes,
+            phase: WritePhase::Data,
+            label: format!("copia de datos del CNID {id}"),
+        });
         file_extents.get_mut(&(id, ft)).expect("existe")[i] = new;
         diff.push(DiffEntry {
             object_id: id as u64,
@@ -643,8 +656,10 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
     let folders = items.values().filter(|i| i.is_folder()).count() as u32 - 1;
     let max_id = items.keys().copied().max().unwrap_or(cnid::FIRST_USER);
     let mut new_vh: VolumeHeader = vh.clone();
-    new_vh.catalog_file = fork_from(&cat_ext.0, cat_nodes as u64 * scan.catalog_node_size as u64, vh.catalog_file.clump_size);
-    new_vh.extents_file = fork_from(&ext_ext.0, ext_ext.1 as u64 * scan.extents_node_size as u64, vh.extents_file.clump_size);
+    new_vh.catalog_file =
+        fork_from(&cat_ext.0, cat_nodes as u64 * scan.catalog_node_size as u64, vh.catalog_file.clump_size);
+    new_vh.extents_file =
+        fork_from(&ext_ext.0, ext_ext.1 as u64 * scan.extents_node_size as u64, vh.extents_file.clump_size);
     new_vh.file_count = files;
     new_vh.folder_count = folders;
     new_vh.next_catalog_id = vh.next_catalog_id.max(max_id + 1).max(next_id);
@@ -658,12 +673,35 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
     let mut writes = data_writes;
     writes.extend(writes_for(&ext_ext.0, bs, &ext_ext.2, WritePhase::Data, "árbol de extents nuevo"));
     writes.extend(writes_for(&cat_ext.0, bs, &cat_ext.2, WritePhase::Data, "catálogo nuevo"));
-    writes.extend(writes_for(&alloc_exts, bs, &bitmap_bytes(&during, alloc_len), WritePhase::Data, "bitmap (transición)"));
-    writes.push(BlockWrite { offset: 1024, data: vh_bytes.clone(), phase: WritePhase::Commit, label: "Volume Header".into() });
-    writes.push(BlockWrite { offset: vh.volume_bytes() - 1024, data: vh_bytes, phase: WritePhase::Commit, label: "Volume Header alternativo".into() });
-    writes.extend(writes_for(&alloc_exts, bs, &bitmap_bytes(&final_map, alloc_len), WritePhase::Finalize, "bitmap final"));
+    writes.extend(writes_for(
+        &alloc_exts,
+        bs,
+        &bitmap_bytes(&during, alloc_len),
+        WritePhase::Data,
+        "bitmap (transición)",
+    ));
+    writes.push(BlockWrite {
+        offset: 1024,
+        data: vh_bytes.clone(),
+        phase: WritePhase::Commit,
+        label: "Volume Header".into(),
+    });
+    writes.push(BlockWrite {
+        offset: vh.volume_bytes() - 1024,
+        data: vh_bytes,
+        phase: WritePhase::Commit,
+        label: "Volume Header alternativo".into(),
+    });
+    writes.extend(writes_for(
+        &alloc_exts,
+        bs,
+        &bitmap_bytes(&final_map, alloc_len),
+        WritePhase::Finalize,
+        "bitmap final",
+    ));
 
-    let recovered = diff.iter().filter(|d| matches!(d.change, DiffChange::Recovered | DiffChange::MovedToRecovered)).count() as u64;
+    let recovered =
+        diff.iter().filter(|d| matches!(d.change, DiffChange::Recovered | DiffChange::MovedToRecovered)).count() as u64;
     let nodes_after = nodes_needed(&cat_raw, &cat_spec(cat_nodes)).map_err(FsError::Invalid)? as u64;
     // Rutas nuevas para el informe.
     let new_items = &items;

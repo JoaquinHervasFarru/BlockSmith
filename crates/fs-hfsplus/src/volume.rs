@@ -56,7 +56,13 @@ impl<'a> Volume<'a> {
     }
 
     /// Lector de un fork con sus extents en línea y los de desbordamiento conocidos.
-    pub fn fork_reader(&self, fork: &ForkData, file_id: u32, data_fork: bool, overflow: &OverflowMap) -> ForkReader<'a> {
+    pub fn fork_reader(
+        &self,
+        fork: &ForkData,
+        file_id: u32,
+        data_fork: bool,
+        overflow: &OverflowMap,
+    ) -> ForkReader<'a> {
         let extents = full_extents(fork, file_id, if data_fork { FORK_DATA } else { FORK_RSRC }, overflow);
         ForkReader::new(self.dev, self.offset, self.vh.block_size, extents, fork.logical_size)
     }

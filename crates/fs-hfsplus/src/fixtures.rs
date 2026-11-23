@@ -12,7 +12,9 @@ use blocksmith_io::endian::{be_u16, be_u32, put_be_u16, put_be_u32};
 use crate::bitmap::AllocationBitmap;
 use crate::btree::pack::{pack_btree, TreeSpec};
 use crate::btree::{attr as battr, HeaderRecord, DESCRIPTOR_SIZE};
-use crate::catalog::{cnid, CatalogKey, CatalogRecord, CommonInfo, FileRecord, FolderRecord, ThreadRecord, FILE_THREAD_EXISTS};
+use crate::catalog::{
+    cnid, CatalogKey, CatalogRecord, CommonInfo, FileRecord, FolderRecord, ThreadRecord, FILE_THREAD_EXISTS,
+};
 use crate::unicode::to_hfs_name;
 use crate::volume_header::{attr, Extent, ForkData, VolumeHeader};
 
@@ -65,21 +67,34 @@ pub fn sample_tree() -> Vec<Entry> {
         .map(|i| Entry::file(&format!("IMG_{:04}.HEIC", 4400 + i), vec![(i % 251) as u8; 1500 + i * 700]))
         .collect();
     vec![
-        Entry::folder("Documentos", vec![
-            Entry::folder("Facturación", vec![
-                Entry::file("resumen.pdf", b"%PDF-1.7 resumen".repeat(300)),
-                Entry::file("facturas_q4.csv", "fecha;importe\n2024-10-01;120,50\n".repeat(50)),
-            ]),
-            Entry::file("Carta de presentación.txt", "Estimada señora:\n".repeat(20)),
-            Entry::file("vacío.txt", Vec::new()),
-        ]),
-        Entry::folder("Fotos", vec![
-            Entry::folder("2023", vec![Entry::folder("Viaje Lisboa", photos)]),
-            Entry::folder("2024", vec![Entry::file("Año nuevo.jpg", vec![0xFF; 9000])]),
-        ]),
-        Entry::folder("Proyectos", vec![
-            Entry::folder("Catálogo primavera", (1..=12).map(|i| Entry::file(&format!("pieza-{i:02}.txt"), format!("pieza {i}\n"))).collect()),
-        ]),
+        Entry::folder(
+            "Documentos",
+            vec![
+                Entry::folder(
+                    "Facturación",
+                    vec![
+                        Entry::file("resumen.pdf", b"%PDF-1.7 resumen".repeat(300)),
+                        Entry::file("facturas_q4.csv", "fecha;importe\n2024-10-01;120,50\n".repeat(50)),
+                    ],
+                ),
+                Entry::file("Carta de presentación.txt", "Estimada señora:\n".repeat(20)),
+                Entry::file("vacío.txt", Vec::new()),
+            ],
+        ),
+        Entry::folder(
+            "Fotos",
+            vec![
+                Entry::folder("2023", vec![Entry::folder("Viaje Lisboa", photos)]),
+                Entry::folder("2024", vec![Entry::file("Año nuevo.jpg", vec![0xFF; 9000])]),
+            ],
+        ),
+        Entry::folder(
+            "Proyectos",
+            vec![Entry::folder(
+                "Catálogo primavera",
+                (1..=12).map(|i| Entry::file(&format!("pieza-{i:02}.txt"), format!("pieza {i}\n"))).collect(),
+            )],
+        ),
         Entry::file("Léeme.txt", "Volumen de prueba generado por BlockSmith.\n"),
     ]
 }
@@ -118,24 +133,37 @@ fn flatten(entries: &[Entry], parent: u32, flat: &mut Flat) -> u32 {
                 let n = to_hfs_name(name);
                 let valence = flatten(children, id, flat);
                 flat.folders += 1;
-                flat.records.push((CatalogKey { parent_id: parent, name: n.clone() },
-                    CatalogRecord::Folder(FolderRecord { valence, folder_id: id, info: info(0o040755, 0), folder_count: 0 })));
-                flat.records.push((CatalogKey { parent_id: id, name: vec![] },
-                    CatalogRecord::FolderThread(ThreadRecord { parent_id: parent, name: n })));
+                flat.records.push((
+                    CatalogKey { parent_id: parent, name: n.clone() },
+                    CatalogRecord::Folder(FolderRecord {
+                        valence,
+                        folder_id: id,
+                        info: info(0o040755, 0),
+                        folder_count: 0,
+                    }),
+                ));
+                flat.records.push((
+                    CatalogKey { parent_id: id, name: vec![] },
+                    CatalogRecord::FolderThread(ThreadRecord { parent_id: parent, name: n }),
+                ));
             }
             Entry::File { name, data } => {
                 let n = to_hfs_name(name);
                 flat.files += 1;
                 flat.data.push((id, data.clone()));
-                flat.records.push((CatalogKey { parent_id: parent, name: n.clone() },
+                flat.records.push((
+                    CatalogKey { parent_id: parent, name: n.clone() },
                     CatalogRecord::File(FileRecord {
                         file_id: id,
                         info: info(0o100644, FILE_THREAD_EXISTS),
                         data_fork: ForkData::default(),
                         rsrc_fork: ForkData::default(),
-                    })));
-                flat.records.push((CatalogKey { parent_id: id, name: vec![] },
-                    CatalogRecord::FileThread(ThreadRecord { parent_id: parent, name: n })));
+                    }),
+                ));
+                flat.records.push((
+                    CatalogKey { parent_id: id, name: vec![] },
+                    CatalogRecord::FileThread(ThreadRecord { parent_id: parent, name: n }),
+                ));
             }
         }
     }
@@ -151,10 +179,19 @@ pub fn build_volume(opts: &BuildOptions, root: &[Entry]) -> Result<Vec<u8>, Stri
     let vname = to_hfs_name(&opts.volume_name);
     let mut flat = Flat { records: Vec::new(), files: 0, folders: 0, next_id: cnid::FIRST_USER, data: Vec::new() };
     let root_valence = flatten(root, cnid::ROOT_FOLDER, &mut flat);
-    flat.records.push((CatalogKey { parent_id: cnid::ROOT_PARENT, name: vname.clone() },
-        CatalogRecord::Folder(FolderRecord { valence: root_valence, folder_id: cnid::ROOT_FOLDER, info: info(0o040755, 0), folder_count: 0 })));
-    flat.records.push((CatalogKey { parent_id: cnid::ROOT_FOLDER, name: vec![] },
-        CatalogRecord::FolderThread(ThreadRecord { parent_id: cnid::ROOT_PARENT, name: vname })));
+    flat.records.push((
+        CatalogKey { parent_id: cnid::ROOT_PARENT, name: vname.clone() },
+        CatalogRecord::Folder(FolderRecord {
+            valence: root_valence,
+            folder_id: cnid::ROOT_FOLDER,
+            info: info(0o040755, 0),
+            folder_count: 0,
+        }),
+    ));
+    flat.records.push((
+        CatalogKey { parent_id: cnid::ROOT_FOLDER, name: vec![] },
+        CatalogRecord::FolderThread(ThreadRecord { parent_id: cnid::ROOT_PARENT, name: vname }),
+    ));
 
     // Distribución de bloques.
     let mut bitmap = AllocationBitmap::new_empty(total_blocks);
@@ -220,22 +257,28 @@ pub fn build_volume(opts: &BuildOptions, root: &[Entry]) -> Result<Vec<u8>, Stri
         return Err("nombres duplicados en la misma carpeta".into());
     }
     let cat_records: Vec<(Vec<u8>, Vec<u8>)> = flat.records.iter().map(|(k, r)| (k.to_bytes(), r.to_bytes())).collect();
-    let (cat_tree, _) = pack_btree(&cat_records, &TreeSpec {
-        node_size: opts.node_size,
-        max_key_length: 516,
-        attributes: battr::BIG_KEYS | battr::VARIABLE_INDEX_KEYS,
-        key_compare_type: if binary { 0xBC } else { 0xCF },
-        total_nodes: cat_nodes,
-        max_records_per_leaf: opts.max_records_per_leaf,
-    })?;
-    let (ext_tree, _) = pack_btree(&[], &TreeSpec {
-        node_size: opts.node_size,
-        max_key_length: 10,
-        attributes: battr::BIG_KEYS,
-        key_compare_type: 0,
-        total_nodes: ext_nodes,
-        max_records_per_leaf: None,
-    })?;
+    let (cat_tree, _) = pack_btree(
+        &cat_records,
+        &TreeSpec {
+            node_size: opts.node_size,
+            max_key_length: 516,
+            attributes: battr::BIG_KEYS | battr::VARIABLE_INDEX_KEYS,
+            key_compare_type: if binary { 0xBC } else { 0xCF },
+            total_nodes: cat_nodes,
+            max_records_per_leaf: opts.max_records_per_leaf,
+        },
+    )?;
+    let (ext_tree, _) = pack_btree(
+        &[],
+        &TreeSpec {
+            node_size: opts.node_size,
+            max_key_length: 10,
+            attributes: battr::BIG_KEYS,
+            key_compare_type: 0,
+            total_nodes: ext_nodes,
+            max_records_per_leaf: None,
+        },
+    )?;
     let place = |image: &mut Vec<u8>, e: Extent, bytes: &[u8]| {
         let off = e.start_block as usize * bs as usize;
         image[off..off + bytes.len()].copy_from_slice(bytes);
@@ -300,9 +343,18 @@ pub enum Damage {
 
 impl Damage {
     pub const ALL: [Damage; 12] = [
-        Self::KeyOrder, Self::BrokenLink, Self::NodeUnreadable, Self::ValenceWrong, Self::FileCountWrong,
-        Self::NextCnidLow, Self::ExtentOverlap, Self::ExtentOutOfRange, Self::BitmapLeak, Self::BitmapUnderalloc,
-        Self::FolderRecordLost, Self::FolderAndThreadLost,
+        Self::KeyOrder,
+        Self::BrokenLink,
+        Self::NodeUnreadable,
+        Self::ValenceWrong,
+        Self::FileCountWrong,
+        Self::NextCnidLow,
+        Self::ExtentOverlap,
+        Self::ExtentOutOfRange,
+        Self::BitmapLeak,
+        Self::BitmapUnderalloc,
+        Self::FolderRecordLost,
+        Self::FolderAndThreadLost,
     ];
 
     /// Código de hallazgo que el escaneo debe producir.
@@ -409,7 +461,11 @@ pub fn apply_damage(img: &mut [u8], damage: Damage) -> Result<(), String> {
     let alloc_off = l.vh.allocation_file.extents[0].start_block as usize * bs;
     let set_bit = |img: &mut [u8], b: u32, on: bool| {
         let byte = &mut img[alloc_off + b as usize / 8];
-        if on { *byte |= 0x80 >> (b % 8) } else { *byte &= !(0x80 >> (b % 8)) }
+        if on {
+            *byte |= 0x80 >> (b % 8)
+        } else {
+            *byte &= !(0x80 >> (b % 8))
+        }
     };
     match damage {
         Damage::KeyOrder => {
@@ -449,7 +505,8 @@ pub fn apply_damage(img: &mut [u8], damage: Damage) -> Result<(), String> {
             for n in l.leaves(img) {
                 for (off, _) in l.records(img, n) {
                     let data = off + 2 + be_u16(img, off) as usize;
-                    if be_u16(img, data) == crate::catalog::rtype::FOLDER && be_u32(img, data + 8) != cnid::ROOT_FOLDER {
+                    if be_u16(img, data) == crate::catalog::rtype::FOLDER && be_u32(img, data + 8) != cnid::ROOT_FOLDER
+                    {
                         let v = be_u32(img, data + 4);
                         put_be_u32(img, data + 4, v + 3);
                         return Ok(());
@@ -495,7 +552,8 @@ pub fn apply_damage(img: &mut [u8], damage: Damage) -> Result<(), String> {
             for n in l.leaves(img) {
                 for (off, _) in l.records(img, n) {
                     let data = off + 2 + be_u16(img, off) as usize;
-                    if be_u16(img, data) == crate::catalog::rtype::FOLDER && be_u32(img, data + 8) != cnid::ROOT_FOLDER {
+                    if be_u16(img, data) == crate::catalog::rtype::FOLDER && be_u32(img, data + 8) != cnid::ROOT_FOLDER
+                    {
                         let v = be_u32(img, data + 4);
                         if best.is_none_or(|b| v > b.2) {
                             best = Some((data, be_u32(img, data + 8), v));

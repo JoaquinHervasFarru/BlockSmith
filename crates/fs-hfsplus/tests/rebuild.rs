@@ -93,7 +93,9 @@ fn every_damage_is_repaired_without_losing_files() {
         let altered: HashSet<u32> = plan
             .diff
             .iter()
-            .filter(|d| matches!(d.change, DiffChange::DataCloned | DiffChange::DataTruncated | DiffChange::UnchangedFlagged))
+            .filter(|d| {
+                matches!(d.change, DiffChange::DataCloned | DiffChange::DataTruncated | DiffChange::UnchangedFlagged)
+            })
             .map(|d| d.object_id as u32)
             .collect();
         let after = contents(&fixed);
@@ -117,8 +119,13 @@ fn lost_folder_is_recreated_from_its_thread() {
     apply_damage(&mut img, Damage::FolderRecordLost).unwrap();
     let (fixed, plan) = rebuild(&img);
     let s = assert_healthy(&fixed, "FolderRecordLost");
-    assert!(plan.diff.iter().any(|d| d.change == DiffChange::Recovered && d.is_folder
-        && d.new_path.as_deref() == Some("/Fotos/2023/Viaje Lisboa")), "{:#?}", plan.diff);
+    assert!(
+        plan.diff.iter().any(|d| d.change == DiffChange::Recovered
+            && d.is_folder
+            && d.new_path.as_deref() == Some("/Fotos/2023/Viaje Lisboa")),
+        "{:#?}",
+        plan.diff
+    );
     let photo = s.catalog.files.keys().find(|id| s.catalog.path_of(**id).unwrap().ends_with("IMG_4401.HEIC")).unwrap();
     assert_eq!(s.catalog.path_of(*photo).unwrap(), "/Fotos/2023/Viaje Lisboa/IMG_4401.HEIC");
 }
@@ -131,7 +138,12 @@ fn orphans_go_to_recovered_items() {
     let s = assert_healthy(&fixed, "FolderAndThreadLost");
     let moved = plan.diff.iter().filter(|d| d.change == DiffChange::MovedToRecovered).count();
     assert_eq!(moved, 24);
-    let in_recovered = s.catalog.files.keys().filter(|id| s.catalog.path_of(**id).unwrap().starts_with(&format!("/{RECOVERED_FOLDER}/"))).count();
+    let in_recovered = s
+        .catalog
+        .files
+        .keys()
+        .filter(|id| s.catalog.path_of(**id).unwrap().starts_with(&format!("/{RECOVERED_FOLDER}/")))
+        .count();
     assert_eq!(in_recovered, 24);
 }
 
@@ -166,14 +178,27 @@ fn hfsx_case_sensitive_names_survive() {
 
 #[test]
 fn mkfs_volumes_rebuild_cleanly() {
-    if !Command::new("sh").arg("-c").arg("command -v mkfs.hfsplus").output().map(|o| o.status.success()).unwrap_or(false) {
+    if !Command::new("sh")
+        .arg("-c")
+        .arg("command -v mkfs.hfsplus")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+    {
         return;
     }
     for args in [vec![], vec!["-J"], vec!["-s"]] {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("m.img");
         std::fs::write(&p, vec![0u8; 64 * 1024 * 1024]).unwrap();
-        assert!(Command::new("mkfs.hfsplus").args(&args).args(["-v", "Externo"]).arg(&p).output().unwrap().status.success());
+        assert!(Command::new("mkfs.hfsplus")
+            .args(&args)
+            .args(["-v", "Externo"])
+            .arg(&p)
+            .output()
+            .unwrap()
+            .status
+            .success());
         let (fixed, _) = rebuild(&std::fs::read(&p).unwrap());
         assert_healthy(&fixed, &format!("mkfs {args:?}"));
     }
@@ -183,7 +208,12 @@ fn mkfs_volumes_rebuild_cleanly() {
 fn larger_volume_with_full_nodes() {
     use blocksmith_fs_hfsplus::fixtures::Entry;
     let tree: Vec<Entry> = (0..50)
-        .map(|d| Entry::folder(&format!("Carpeta {d:02}"), (0..50).map(|f| Entry::file(&format!("documento-{d:02}-{f:03}.txt"), format!("{d}/{f}"))).collect()))
+        .map(|d| {
+            Entry::folder(
+                &format!("Carpeta {d:02}"),
+                (0..50).map(|f| Entry::file(&format!("documento-{d:02}-{f:03}.txt"), format!("{d}/{f}"))).collect(),
+            )
+        })
         .collect();
     let o = BuildOptions { size_bytes: 64 * 1024 * 1024, ..Default::default() };
     let clean = build_volume(&o, &tree).unwrap();

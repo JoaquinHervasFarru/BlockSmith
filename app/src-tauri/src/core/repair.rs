@@ -14,7 +14,10 @@ use blocksmith_fs_hfsplus::{scan_volume, Volume};
 use blocksmith_helper::{sha256_hex, HelperEvent, Job};
 use blocksmith_io::{open_image, Slice};
 use blocksmith_txwriter::device::{assess, undo_on_target_device, Assessment};
-use blocksmith_txwriter::{apply, inspect, mark_verified, prepare, roll_forward, rollback, Control, FileTarget, Observer, PlannedWrite, TxError, TxMeta, TxState};
+use blocksmith_txwriter::{
+    apply, inspect, mark_verified, prepare, roll_forward, rollback, Control, FileTarget, Observer, PlannedWrite,
+    TxError, TxMeta, TxState,
+};
 use rusqlite::{params, OptionalExtension};
 use serde::Serialize;
 
@@ -145,8 +148,13 @@ fn helper_path() -> Option<PathBuf> {
 
 /// Ejecuta el helper (con elevación si hace falta) y traduce sus eventos al progreso.
 fn run_helper(args: &[String], progress: &mut dyn Progress) -> CoreResult<HelperEvent> {
-    let helper = helper_path().ok_or_else(|| CoreError::Invalid("no se encontró blocksmith-helper junto a la aplicación".into()))?;
-    let elev = elevation().ok_or_else(|| CoreError::Invalid("no hay forma de pedir permisos de administrador en este sistema (instala polkit/pkexec)".into()))?;
+    let helper = helper_path()
+        .ok_or_else(|| CoreError::Invalid("no se encontró blocksmith-helper junto a la aplicación".into()))?;
+    let elev = elevation().ok_or_else(|| {
+        CoreError::Invalid(
+            "no hay forma de pedir permisos de administrador en este sistema (instala polkit/pkexec)".into(),
+        )
+    })?;
     let mut cmd = match elev.first().map(String::as_str) {
         None => Command::new(&helper),
         Some("osascript") => {
@@ -154,7 +162,10 @@ fn run_helper(args: &[String], progress: &mut dyn Progress) -> CoreResult<Helper
                 .chain(args.iter().cloned())
                 .map(|a| format!("'{}'", a.replace('\'', "'\\''")))
                 .collect();
-            let script = format!("do shell script \"{}\" with administrator privileges", quoted.join(" ").replace('\\', "\\\\").replace('"', "\\\""));
+            let script = format!(
+                "do shell script \"{}\" with administrator privileges",
+                quoted.join(" ").replace('\\', "\\\\").replace('"', "\\\"")
+            );
             let mut c = Command::new("osascript");
             c.args(["-e", &script]);
             c
@@ -168,7 +179,11 @@ fn run_helper(args: &[String], progress: &mut dyn Progress) -> CoreResult<Helper
     if elev.first().map(String::as_str) != Some("osascript") {
         cmd.args(args);
     }
-    let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| CoreError::Invalid(format!("no se pudo ejecutar el helper: {e}")))?;
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| CoreError::Invalid(format!("no se pudo ejecutar el helper: {e}")))?;
     let stdout = child.stdout.take().expect("stdout capturado");
     let mut last: Option<HelperEvent> = None;
     for line in BufReader::new(stdout).lines() {
@@ -192,7 +207,11 @@ fn run_helper(args: &[String], progress: &mut dyn Progress) -> CoreResult<Helper
             if let Some(mut e) = child.stderr.take() {
                 let _ = std::io::Read::read_to_string(&mut e, &mut err);
             }
-            Err(CoreError::Invalid(if err.trim().is_empty() { "el helper terminó sin respuesta (¿se canceló la petición de permisos?)".into() } else { err.trim().to_string() }))
+            Err(CoreError::Invalid(if err.trim().is_empty() {
+                "el helper terminó sin respuesta (¿se canceló la petición de permisos?)".into()
+            } else {
+                err.trim().to_string()
+            }))
         }
         None => Err(CoreError::Invalid("el helper no informó del resultado".into())),
     }
@@ -218,13 +237,16 @@ impl Observer for TxObs<'_> {
         if self.fail_at == Some(seq) {
             return Control::Crash;
         }
-        if self.progress.is_cancelled() { Control::Stop } else { Control::Continue }
+        if self.progress.is_cancelled() {
+            Control::Stop
+        } else {
+            Control::Continue
+        }
     }
     fn progress(&mut self, done: u32, total: u32, _: &str) {
         self.progress.advance(done as u64, total as u64);
     }
 }
-
 
 impl Core {
     pub fn undo_dir(&self) -> CoreResult<PathBuf> {
@@ -239,7 +261,12 @@ impl Core {
             .iter()
             .filter(|d| d.path.as_deref().is_some_and(|p| device_path.starts_with(p)))
             .max_by_key(|d| d.path.as_ref().map(String::len));
-        Ok(d.map(|d| (d.model.clone().unwrap_or_default(), d.latest.as_ref().map(|s| s.overall.clone()).unwrap_or_else(|| "unknown".into()))))
+        Ok(d.map(|d| {
+            (
+                d.model.clone().unwrap_or_default(),
+                d.latest.as_ref().map(|s| s.overall.clone()).unwrap_or_else(|| "unknown".into()),
+            )
+        }))
     }
 
     pub fn preflight(&self, rebuild_id: i64) -> CoreResult<PreflightDto> {
@@ -261,7 +288,15 @@ impl Core {
         checks.push(if applied > 0 {
             check("plan", "Plan pendiente de aplicar", "block", "Esta reconstrucción ya se aplicó al origen.")
         } else {
-            check("plan", "Plan pendiente de aplicar", "ok", format!("{} cambios revisados; se recalculará justo antes de escribir.", r.changes.iter().map(|c| c.count).sum::<i64>()))
+            check(
+                "plan",
+                "Plan pendiente de aplicar",
+                "ok",
+                format!(
+                    "{} cambios revisados; se recalculará justo antes de escribir.",
+                    r.changes.iter().map(|c| c.count).sum::<i64>()
+                ),
+            )
         });
 
         let open_tx = self.db().conn().query_row(
@@ -271,7 +306,12 @@ impl Core {
             |row| row.get::<_, i64>(0),
         )?;
         checks.push(if open_tx > 0 {
-            check("pending_tx", "Sin transacciones a medias", "block", "Hay una escritura interrumpida en este volumen: revísala en «Transacciones» antes de continuar.")
+            check(
+                "pending_tx",
+                "Sin transacciones a medias",
+                "block",
+                "Hay una escritura interrumpida en este volumen: revísala en «Transacciones» antes de continuar.",
+            )
         } else {
             check("pending_tx", "Sin transacciones a medias", "ok", "Ninguna escritura pendiente en este volumen.")
         });
@@ -283,38 +323,87 @@ impl Core {
         checks.push(match (a.exists, a.kind) {
             (false, _) => check("target", "Origen disponible", "block", format!("{} ya no existe.", loc.path)),
             (true, None) => check("target", "Origen disponible", "block", "El origen no es una imagen ni un disco."),
-            (true, Some(_)) if a.writable => check("target", "Origen disponible", "ok", format!("Se escribirá en la {kind_label} {}.", loc.path)),
+            (true, Some(_)) if a.writable => {
+                check("target", "Origen disponible", "ok", format!("Se escribirá en la {kind_label} {}.", loc.path))
+            }
             (true, Some(_)) => match elevation() {
-                Some(_) if helper_path().is_some() => check("target", "Origen disponible", "warn", "Se pedirán permisos de administrador para escribir."),
-                _ => check("target", "Origen disponible", "block", "No hay permisos para escribir y no se puede pedir elevación en este sistema."),
+                Some(_) if helper_path().is_some() => {
+                    check("target", "Origen disponible", "warn", "Se pedirán permisos de administrador para escribir.")
+                }
+                _ => check(
+                    "target",
+                    "Origen disponible",
+                    "block",
+                    "No hay permisos para escribir y no se puede pedir elevación en este sistema.",
+                ),
             },
         });
         checks.push(if a.is_boot {
-            check("boot", "No es el disco de arranque", "block", "Contiene el sistema en uso. Arranca desde otro disco (medio de arranque) para repararlo.")
+            check(
+                "boot",
+                "No es el disco de arranque",
+                "block",
+                "Contiene el sistema en uso. Arranca desde otro disco (medio de arranque) para repararlo.",
+            )
         } else {
             check("boot", "No es el disco de arranque", "ok", "El sistema en uso está en otro disco.")
         });
         checks.push(if a.mounted_at.is_empty() {
-            check("mounted", "Volumen desmontado", "ok", match &a.loop_device {
-                Some(l) => format!("La imagen está conectada a {l}, pero sin montar."),
-                None => "No está en uso por el sistema.".into(),
-            })
+            check(
+                "mounted",
+                "Volumen desmontado",
+                "ok",
+                match &a.loop_device {
+                    Some(l) => format!("La imagen está conectada a {l}, pero sin montar."),
+                    None => "No está en uso por el sistema.".into(),
+                },
+            )
         } else {
-            check("mounted", "Volumen desmontado", "block", format!("Montado en {}. Desmóntalo antes de reparar.", a.mounted_at.join(", ")))
+            check(
+                "mounted",
+                "Volumen desmontado",
+                "block",
+                format!("Montado en {}. Desmóntalo antes de reparar.", a.mounted_at.join(", ")),
+            )
         });
         checks.push(if vol.journal_state == "pending" {
-            check("journal", "Journal sin transacciones pendientes", "block", "Monta el volumen una vez en macOS para que se apliquen y vuelve a analizarlo.")
+            check(
+                "journal",
+                "Journal sin transacciones pendientes",
+                "block",
+                "Monta el volumen una vez en macOS para que se apliquen y vuelve a analizarlo.",
+            )
         } else {
-            check("journal", "Journal sin transacciones pendientes", "ok", if vol.journaled { "Journal limpio." } else { "El volumen no usa journal." })
+            check(
+                "journal",
+                "Journal sin transacciones pendientes",
+                "ok",
+                if vol.journaled { "Journal limpio." } else { "El volumen no usa journal." },
+            )
         });
         checks.push(match (a.kind, self.health_for(&loc.path)?) {
             (Some(blocksmith_txwriter::TargetKind::BlockDevice), Some((model, overall))) => match overall.as_str() {
-                "failing" => check("health", "Salud del disco", "block", format!("{model} predice un fallo: copia o clona los datos antes de cualquier reparación.")),
-                "warning" => check("health", "Salud del disco", "warn", format!("{model} muestra signos de deterioro; ten una copia antes de escribir.")),
+                "failing" => check(
+                    "health",
+                    "Salud del disco",
+                    "block",
+                    format!("{model} predice un fallo: copia o clona los datos antes de cualquier reparación."),
+                ),
+                "warning" => check(
+                    "health",
+                    "Salud del disco",
+                    "warn",
+                    format!("{model} muestra signos de deterioro; ten una copia antes de escribir."),
+                ),
                 "passed" => check("health", "Salud del disco", "ok", format!("{model} sin indicios de deterioro.")),
                 _ => check("health", "Salud del disco", "warn", "No se pudo leer el estado S.M.A.R.T. del disco."),
             },
-            (Some(blocksmith_txwriter::TargetKind::BlockDevice), None) => check("health", "Salud del disco", "warn", "No hay lecturas de salud de este disco; léelas en «Salud de los discos»."),
+            (Some(blocksmith_txwriter::TargetKind::BlockDevice), None) => check(
+                "health",
+                "Salud del disco",
+                "warn",
+                "No hay lecturas de salud de este disco; léelas en «Salud de los discos».",
+            ),
             _ => check("health", "Salud del disco", "ok", "No aplica a imágenes."),
         });
         let needed = 2 * r.bytes_to_write.max(0) as u64 + 16 * 1024 * 1024;
@@ -351,7 +440,14 @@ impl Core {
         })
     }
 
-    fn set_tx(&self, tx_id: i64, status: &str, written: Option<u32>, error: Option<&str>, finished: bool) -> CoreResult<()> {
+    fn set_tx(
+        &self,
+        tx_id: i64,
+        status: &str,
+        written: Option<u32>,
+        error: Option<&str>,
+        finished: bool,
+    ) -> CoreResult<()> {
         self.db().conn().execute(
             "UPDATE write_transactions SET status = ?1, blocks_written = COALESCE(?2, blocks_written), error = ?3,
                 finished_at = CASE WHEN ?4 THEN ?5 ELSE finished_at END WHERE id = ?6",
@@ -361,14 +457,27 @@ impl Core {
     }
 
     /// Verifica el volumen tras escribir: análisis completo del origen.
-    fn verify_source(&self, volume_id: i64, session_id: i64, progress: &mut dyn Progress) -> CoreResult<Vec<FindingDto>> {
+    fn verify_source(
+        &self,
+        volume_id: i64,
+        session_id: i64,
+        progress: &mut dyn Progress,
+    ) -> CoreResult<Vec<FindingDto>> {
         progress.phase("Verificando el volumen");
         let loc = self.location(volume_id)?;
         let dev = open_image(&loc.path)?;
         let slice = Slice::new(dev.as_ref(), loc.offset, loc.length)?;
-        let vol = Volume::open(&slice)?.ok_or_else(|| CoreError::Invalid("el origen ya no contiene un volumen HFS+".into()))?;
+        let vol = Volume::open(&slice)?
+            .ok_or_else(|| CoreError::Invalid("el origen ya no contiene un volumen HFS+".into()))?;
         let scan = scan_volume(&vol, progress)?;
-        Ok(scan.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).enumerate().map(|(i, f)| finding_dto(i as i64, session_id, f)).collect())
+        Ok(scan
+            .result
+            .findings
+            .iter()
+            .filter(|f| f.severity != Severity::Cosmetic)
+            .enumerate()
+            .map(|(i, f)| finding_dto(i as i64, session_id, f))
+            .collect())
     }
 
     fn mark_repaired(&self, rebuild_id: i64, session_id: i64, path: &str, verified: bool) -> CoreResult<()> {
@@ -385,15 +494,23 @@ impl Core {
     }
 
     /// Aplica la reconstrucción sobre el propio origen.
-    pub fn repair_in_place(&self, rebuild_id: i64, confirm: &str, progress: &mut dyn Progress) -> CoreResult<RepairResultDto> {
+    pub fn repair_in_place(
+        &self,
+        rebuild_id: i64,
+        confirm: &str,
+        progress: &mut dyn Progress,
+    ) -> CoreResult<RepairResultDto> {
         progress.phase("Comprobaciones previas");
         let pre = self.preflight(rebuild_id)?;
         let expected = pre.volume_name.clone().unwrap_or_default();
         if confirm.trim() != expected.trim() {
-            return Err(CoreError::Invalid(format!("para confirmar escribe exactamente el nombre del volumen: «{expected}»")));
+            return Err(CoreError::Invalid(format!(
+                "para confirmar escribe exactamente el nombre del volumen: «{expected}»"
+            )));
         }
         if !pre.can_proceed {
-            let why: Vec<String> = pre.checks.iter().filter(|c| c.status == "block").map(|c| c.detail.clone()).collect();
+            let why: Vec<String> =
+                pre.checks.iter().filter(|c| c.status == "block").map(|c| c.detail.clone()).collect();
             return Err(CoreError::Invalid(format!("no se puede escribir: {}", why.join(" "))));
         }
         let r = self.get_rebuild(rebuild_id)?;
@@ -404,7 +521,9 @@ impl Core {
         progress.phase("Recalculando el plan sobre el contenido actual");
         let plan = self.compute_plan(session.volume_id, progress)?;
         if plan.diff.len() != self.diff(rebuild_id)?.len() {
-            return Err(CoreError::Invalid("el volumen cambió desde que revisaste el plan; vuelve a analizarlo".into()));
+            return Err(CoreError::Invalid(
+                "el volumen cambió desde que revisaste el plan; vuelve a analizarlo".into(),
+            ));
         }
         let undo_dir = self.undo_dir()?;
         std::fs::create_dir_all(&undo_dir)?;
@@ -420,7 +539,10 @@ impl Core {
         // El id de la transacción hace único el nombre aunque se reintente en el mismo segundo.
         let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
         let undo = undo_dir.join(format!("blocksmith-tx{tx_id}-r{rebuild_id}-{stamp}.undo"));
-        self.db().conn().execute("UPDATE write_transactions SET undo_log_path = ?1 WHERE id = ?2", params![undo.display().to_string(), tx_id])?;
+        self.db().conn().execute(
+            "UPDATE write_transactions SET undo_log_path = ?1 WHERE id = ?2",
+            params![undo.display().to_string(), tx_id],
+        )?;
         let undo_str = undo.display().to_string();
 
         let verified;
@@ -429,7 +551,10 @@ impl Core {
             progress.phase("Guardando la copia de deshacer");
             let writes = job.decode().map_err(CoreError::Invalid)?;
             let mut dest = FileTarget::open(Path::new(&loc.path))?;
-            let planned = writes.into_iter().map(|(o, phase, label, data)| PlannedWrite { offset: loc.offset + o, data, phase, label }).collect();
+            let planned = writes
+                .into_iter()
+                .map(|(o, phase, label, data)| PlannedWrite { offset: loc.offset + o, data, phase, label })
+                .collect();
             let meta = TxMeta {
                 target: loc.path.clone(),
                 target_len,
@@ -449,7 +574,13 @@ impl Core {
                 Err(TxError::Cancelled) => {
                     progress.phase("Revirtiendo");
                     rollback(&undo, &mut dest, false)?;
-                    self.set_tx(tx_id, "rolled_back", Some(0), Some("cancelada por el usuario antes de modificar la cabecera"), true)?;
+                    self.set_tx(
+                        tx_id,
+                        "rolled_back",
+                        Some(0),
+                        Some("cancelada por el usuario antes de modificar la cabecera"),
+                        true,
+                    )?;
                     return Err(CoreError::Cancelled);
                 }
                 Err(e) => {
@@ -473,8 +604,15 @@ impl Core {
             std::fs::write(&job_path, &raw)?;
             self.set_tx(tx_id, "writing", Some(0), None, false)?;
             let args = vec![
-                "apply".into(), "--target".into(), loc.path.clone(), "--job".into(), job_path.display().to_string(),
-                "--job-sha256".into(), sha256_hex(&raw), "--undo".into(), undo_str.clone(),
+                "apply".into(),
+                "--target".into(),
+                loc.path.clone(),
+                "--job".into(),
+                job_path.display().to_string(),
+                "--job-sha256".into(),
+                sha256_hex(&raw),
+                "--undo".into(),
+                undo_str.clone(),
             ];
             let ev = run_helper(&args, progress);
             let _ = std::fs::remove_file(&job_path);
@@ -485,13 +623,27 @@ impl Core {
                         .into_iter()
                         .enumerate()
                         .map(|(i, code)| FindingDto {
-                            id: i as i64, session_id: r.session_id, code: code.clone(), severity: "minor".into(), object_type: "header".into(),
-                            cnid: None, node_number: None, path: None, message: code, fixed_in_rebuild: false,
+                            id: i as i64,
+                            session_id: r.session_id,
+                            code: code.clone(),
+                            severity: "minor".into(),
+                            object_type: "header".into(),
+                            cnid: None,
+                            node_number: None,
+                            path: None,
+                            message: code,
+                            fixed_in_rebuild: false,
                         })
                         .collect();
                 }
                 HelperEvent::Cancelled { .. } => {
-                    self.set_tx(tx_id, "rolled_back", Some(0), Some("cancelada por el usuario antes de modificar la cabecera"), true)?;
+                    self.set_tx(
+                        tx_id,
+                        "rolled_back",
+                        Some(0),
+                        Some("cancelada por el usuario antes de modificar la cabecera"),
+                        true,
+                    )?;
                     return Err(CoreError::Cancelled);
                 }
                 HelperEvent::Error { message, interrupted } => {
@@ -528,7 +680,11 @@ impl Core {
                     session_id: r.get(2)?,
                     volume_name: r.get(3)?,
                     device_path: r.get(4)?,
-                    can_rollback: exists && matches!(status.as_str(), "interrupted" | "finalized" | "verified" | "writing" | "committed" | "prepared"),
+                    can_rollback: exists
+                        && matches!(
+                            status.as_str(),
+                            "interrupted" | "finalized" | "verified" | "writing" | "committed" | "prepared"
+                        ),
                     can_complete: exists && status == "interrupted",
                     status,
                     mode: r.get(6)?,
@@ -550,19 +706,31 @@ impl Core {
     pub fn detect_interrupted(&self) -> CoreResult<usize> {
         let pending: Vec<(i64, String)> = {
             let conn = self.db().conn();
-            let mut st = conn.prepare("SELECT id, undo_log_path FROM write_transactions WHERE status IN ('prepared','writing','committed')")?;
+            let mut st = conn.prepare(
+                "SELECT id, undo_log_path FROM write_transactions WHERE status IN ('prepared','writing','committed')",
+            )?;
             let rows = st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<Result<_, _>>()?;
             rows
         };
         let mut n = 0;
         for (id, undo) in pending {
             match inspect(Path::new(&undo)) {
-                Ok(info) if info.state == TxState::Verified => self.set_tx(id, "verified", Some(info.written), None, true)?,
-                Ok(info) if info.state == TxState::Finalized => self.set_tx(id, "finalized", Some(info.written), None, true)?,
+                Ok(info) if info.state == TxState::Verified => {
+                    self.set_tx(id, "verified", Some(info.written), None, true)?
+                }
+                Ok(info) if info.state == TxState::Finalized => {
+                    self.set_tx(id, "finalized", Some(info.written), None, true)?
+                }
                 Ok(info) if info.state == TxState::RolledBack => self.set_tx(id, "rolled_back", Some(0), None, true)?,
                 Ok(info) => {
                     n += 1;
-                    self.set_tx(id, "interrupted", Some(info.written), Some("la aplicación se cerró durante la escritura"), false)?
+                    self.set_tx(
+                        id,
+                        "interrupted",
+                        Some(info.written),
+                        Some("la aplicación se cerró durante la escritura"),
+                        false,
+                    )?
                 }
                 Err(e) => {
                     n += 1;
@@ -574,7 +742,10 @@ impl Core {
     }
 
     fn tx_row(&self, tx_id: i64) -> CoreResult<TxDto> {
-        self.transactions()?.into_iter().find(|t| t.id == tx_id).ok_or_else(|| CoreError::NotFound(format!("transacción {tx_id} no encontrada")))
+        self.transactions()?
+            .into_iter()
+            .find(|t| t.id == tx_id)
+            .ok_or_else(|| CoreError::NotFound(format!("transacción {tx_id} no encontrada")))
     }
 
     /// Revierte una transacción (interrumpida o completada) con su registro de deshacer.
@@ -593,7 +764,13 @@ impl Core {
             let mut dest = FileTarget::open(target)?;
             rollback(Path::new(&t.undo_log_path), &mut dest, force)?;
         } else {
-            let mut args = vec!["rollback".into(), "--target".into(), t.device_path.clone(), "--undo".into(), t.undo_log_path.clone()];
+            let mut args = vec![
+                "rollback".into(),
+                "--target".into(),
+                t.device_path.clone(),
+                "--undo".into(),
+                t.undo_log_path.clone(),
+            ];
             if force {
                 args.push("--force".into());
             }
@@ -630,7 +807,13 @@ impl Core {
             }
             ok
         } else {
-            let args = vec!["roll-forward".into(), "--target".into(), t.device_path.clone(), "--undo".into(), t.undo_log_path.clone()];
+            let args = vec![
+                "roll-forward".into(),
+                "--target".into(),
+                t.device_path.clone(),
+                "--undo".into(),
+                t.undo_log_path.clone(),
+            ];
             match run_helper(&args, progress)? {
                 HelperEvent::Done { verified, .. } => verified,
                 HelperEvent::Error { message, .. } => return Err(CoreError::Invalid(message)),
@@ -644,6 +827,10 @@ impl Core {
 
     /// ¿Hay un registro de transacción para esta fila? (usado por las pruebas)
     pub fn tx_undo_path(&self, tx_id: i64) -> CoreResult<Option<String>> {
-        Ok(self.db().conn().query_row("SELECT undo_log_path FROM write_transactions WHERE id = ?1", [tx_id], |r| r.get(0)).optional()?)
+        Ok(self
+            .db()
+            .conn()
+            .query_row("SELECT undo_log_path FROM write_transactions WHERE id = ?1", [tx_id], |r| r.get(0))
+            .optional()?)
     }
 }

@@ -57,7 +57,14 @@ pub fn sha256_hex(b: &[u8]) -> String {
 }
 
 impl Job {
-    pub fn from_plan(plan: &RebuildPlan, target: &str, target_len: u64, base_offset: u64, volume_len: u64, label: &str) -> Self {
+    pub fn from_plan(
+        plan: &RebuildPlan,
+        target: &str,
+        target_len: u64,
+        base_offset: u64,
+        volume_len: u64,
+        label: &str,
+    ) -> Self {
         let ordered: Vec<_> = plan.ordered_writes().collect();
         Self {
             version: JOB_VERSION,
@@ -86,7 +93,9 @@ impl Job {
         }
         let mut out = Vec::with_capacity(self.writes.len());
         for w in &self.writes {
-            let data = base64::engine::general_purpose::STANDARD.decode(&w.data_b64).map_err(|e| format!("datos no válidos en «{}»: {e}", w.label))?;
+            let data = base64::engine::general_purpose::STANDARD
+                .decode(&w.data_b64)
+                .map_err(|e| format!("datos no válidos en «{}»: {e}", w.label))?;
             out.push((w.offset, w.phase, w.label.clone(), data));
         }
         let computed = plan_sha256(out.iter().map(|(o, p, l, d)| (*o, *p, l.as_str(), d.as_slice())));

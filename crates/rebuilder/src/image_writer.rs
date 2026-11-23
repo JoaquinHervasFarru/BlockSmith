@@ -64,14 +64,10 @@ pub fn export_image(
 ) -> Result<ExportReport, ExportError> {
     let total = src.len();
     check(plan, vol_offset, vol_len, total)?;
-    let mut file: File = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(out)
-        .map_err(|e| match e.kind() {
-            std::io::ErrorKind::AlreadyExists => ExportError::OutputExists(out.display().to_string()),
-            _ => e.into(),
-        })?;
+    let mut file: File = OpenOptions::new().write(true).create_new(true).open(out).map_err(|e| match e.kind() {
+        std::io::ErrorKind::AlreadyExists => ExportError::OutputExists(out.display().to_string()),
+        _ => e.into(),
+    })?;
     let result = (|| {
         let mut report = ExportReport { bytes_total: total, ..Default::default() };
         progress.phase("Copiando la imagen");

@@ -75,9 +75,8 @@ impl Database {
     pub fn status(&self) -> rusqlite::Result<DbStatus> {
         let conn = self.conn();
         let schema_version = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        let mut stmt = conn.prepare(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-        )?;
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")?;
         let tables = stmt.query_map([], |r| r.get(0))?.collect::<Result<_, _>>()?;
         Ok(DbStatus { schema_version, tables })
     }
@@ -104,9 +103,23 @@ mod tests {
         let s = db.status().unwrap();
         assert_eq!(s.schema_version, MIGRATIONS.len() as i64);
         for t in [
-            "alert_rules", "alerts", "boot_media", "diff_entries", "disks", "encryption_layers",
-            "findings", "rebuilds", "reports", "sessions", "settings", "smart_attributes",
-            "smart_snapshots", "sources", "undo_blocks", "volumes", "write_transactions",
+            "alert_rules",
+            "alerts",
+            "boot_media",
+            "diff_entries",
+            "disks",
+            "encryption_layers",
+            "findings",
+            "rebuilds",
+            "reports",
+            "sessions",
+            "settings",
+            "smart_attributes",
+            "smart_snapshots",
+            "sources",
+            "undo_blocks",
+            "volumes",
+            "write_transactions",
         ] {
             assert!(s.tables.iter().any(|x| x == t), "falta la tabla {t}");
         }

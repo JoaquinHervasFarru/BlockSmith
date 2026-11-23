@@ -187,8 +187,8 @@ impl BlockDevice for UdifImage {
 }
 
 fn parse_blkx(xml: &[u8]) -> IoResult<Vec<(String, Vec<u8>)>> {
-    let value = plist::Value::from_reader_xml(xml)
-        .map_err(|e| IoError::Corrupt(format!("plist UDIF ilegible: {e}")))?;
+    let value =
+        plist::Value::from_reader_xml(xml).map_err(|e| IoError::Corrupt(format!("plist UDIF ilegible: {e}")))?;
     let blkx = value
         .as_dictionary()
         .and_then(|d| d.get("resource-fork"))
@@ -200,12 +200,7 @@ fn parse_blkx(xml: &[u8]) -> IoResult<Vec<(String, Vec<u8>)>> {
     for entry in blkx {
         let Some(d) = entry.as_dictionary() else { continue };
         let Some(data) = d.get("Data").and_then(|v| v.as_data()) else { continue };
-        let name = d
-            .get("Name")
-            .or_else(|| d.get("CFName"))
-            .and_then(|v| v.as_string())
-            .unwrap_or("")
-            .to_string();
+        let name = d.get("Name").or_else(|| d.get("CFName")).and_then(|v| v.as_string()).unwrap_or("").to_string();
         out.push((name, data.to_vec()));
     }
     Ok(out)

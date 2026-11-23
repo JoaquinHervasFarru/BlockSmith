@@ -5,9 +5,7 @@ macro_rules! getter {
     ($name:ident, $ty:ty, $n:expr, $from:ident) => {
         #[inline]
         pub fn $name(b: &[u8], off: usize) -> $ty {
-            b.get(off..off + $n)
-                .map(|s| <$ty>::$from(s.try_into().expect("longitud fija")))
-                .unwrap_or(0)
+            b.get(off..off + $n).map(|s| <$ty>::$from(s.try_into().expect("longitud fija"))).unwrap_or(0)
         }
     };
 }
