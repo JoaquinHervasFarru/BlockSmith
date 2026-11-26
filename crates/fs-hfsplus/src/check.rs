@@ -16,13 +16,14 @@ use blocksmith_io::endian::{be_u32, be_u64};
 use serde::Serialize;
 use serde_json::json;
 
+use crate::attributes::{record_extents, AttrKey};
 use crate::bitmap::AllocationBitmap;
 use crate::btree::{kind, split_record, BTree, Node};
 use crate::catalog::{cnid, CatalogKey, CatalogRecord, FileRecord, FolderRecord, ThreadRecord, FILE_THREAD_EXISTS};
 use crate::extents::{parse_record, ExtentKey, FORK_DATA, FORK_RSRC};
 use crate::unicode::from_hfs_name;
 use crate::volume::{full_extents, OverflowMap, Volume};
-use crate::volume_header::{attr, ForkData};
+use crate::volume_header::{attr, Extent, ForkData};
 
 /// Máximo de hallazgos individuales por código; el resto se resume.
 const MAX_PER_CODE: usize = 200;
@@ -89,6 +90,9 @@ pub struct HfsScan {
     pub extents_node_size: u16,
     /// Registros del catálogo descartados por ilegibles.
     pub dropped_records: u64,
+    /// Bloques con datos de atributos extendidos grandes, por fileID (registros
+    /// 0x20/0x30 del árbol de atributos). Están en uso aunque no sean de ningún archivo.
+    pub attr_extents: Vec<(u32, Extent)>,
 }
 
 #[derive(Default)]
@@ -744,7 +748,8 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
 
     progress.phase("Extents y bitmap de asignación");
     check_cancel(progress)?;
-    check_allocation(vol, &catalog, &overflow, &mut f, progress)?;
+    let attr_extents = scan_attributes(vol, &overflow, &mut f, progress)?;
+    check_allocation(vol, &catalog, &overflow, &attr_extents, &mut f, progress)?;
 
     let name = catalog.folders.get(&cnid::ROOT_FOLDER).map(|(k, _)| from_hfs_name(&k.name));
     let info = FsInfo {
@@ -764,7 +769,49 @@ pub fn scan_volume(vol: &Volume<'_>, progress: &mut dyn Progress) -> FsResult<Hf
         catalog_node_size: tree.header.node_size,
         extents_node_size,
         dropped_records,
+        attr_extents,
     })
+}
+
+/// Recorre el árbol de atributos (si existe) y devuelve los extents de los atributos
+/// que guardan sus datos fuera de línea.
+fn scan_attributes(
+    vol: &Volume<'_>,
+    overflow: &OverflowMap,
+    f: &mut Findings,
+    progress: &mut dyn Progress,
+) -> FsResult<Vec<(u32, Extent)>> {
+    let vh = &vol.vh;
+    if vh.attributes_file.logical_size == 0 {
+        return Ok(vec![]);
+    }
+    progress.phase("Árbol de atributos");
+    check_cancel(progress)?;
+    let reader = vol.fork_reader(&vh.attributes_file, cnid::ATTRIBUTES_FILE, true, overflow);
+    let tree = match BTree::open(reader)? {
+        Ok(t) => t,
+        Err(e) => {
+            f.simple(
+                "HFS_BTREE_HEADER",
+                Severity::Critical,
+                ObjectType::Header,
+                format!("Árbol de atributos ilegible: {e}"),
+            );
+            return Ok(vec![]);
+        }
+    };
+    let cmp = |a: &[u8], b: &[u8]| match (AttrKey::parse(a), AttrKey::parse(b)) {
+        (Some(x), Some(y)) => x.compare(&y),
+        _ => Ordering::Equal,
+    };
+    let ts = scan_tree("atributos", &tree, &cmp, f, progress)?;
+    let mut out = Vec::new();
+    for (k, d, _, _) in ts.records {
+        if let Some(key) = AttrKey::parse(&k) {
+            out.extend(record_extents(&d).into_iter().map(|e| (key.file_id, e)));
+        }
+    }
+    Ok(out)
 }
 
 /// Intenta leer como hoja un nodo cuyo descriptor tiene un tipo no válido.
@@ -1062,6 +1109,7 @@ fn check_allocation(
     vol: &Volume<'_>,
     cat: &CatalogSnapshot,
     overflow: &OverflowMap,
+    attr_extents: &[(u32, Extent)],
     f: &mut Findings,
     progress: &mut dyn Progress,
 ) -> FsResult<()> {
@@ -1147,6 +1195,31 @@ fn check_allocation(
         let path = cat.label(*id, key);
         check_fork(&rec.data_fork, *id, FORK_DATA, path.clone(), Some(path.clone()), f);
         check_fork(&rec.rsrc_fork, *id, FORK_RSRC, format!("{path} (fork de recursos)"), Some(path), f);
+    }
+
+    for (id, e) in attr_extents {
+        if e.start_block as u64 + e.block_count as u64 > total as u64 {
+            f.push(
+                "HFS_EXTENT_OUT_OF_RANGE",
+                Severity::Critical,
+                ObjectType::Extent,
+                Some(*id as u64),
+                None,
+                None,
+                format!(
+                    "Atributo extendido del archivo {id}: extent {}+{} fuera de los límites del volumen",
+                    e.start_block, e.block_count
+                ),
+                json!({ "start": e.start_block, "count": e.block_count }),
+            );
+        } else {
+            claims.push(Claim {
+                start: e.start_block,
+                count: e.block_count,
+                owner: format!("Atributo extendido del archivo {id}"),
+                id: *id,
+            });
+        }
     }
 
     // Bloques reservados: los primeros 1536 bytes y los últimos 1024 del volumen.

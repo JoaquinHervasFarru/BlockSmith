@@ -67,13 +67,37 @@ apple_fsck() {
   shift 2
   local whole vol mnt
   read -r whole vol mnt < <(attach "$img" -nomount "$@")
+  local rc=0
   if sudo -n fsck_hfs -fn "/dev/r${vol#/dev/}" >"fsck-$label.log" 2>&1; then
     ok "$label: fsck_hfs acepta el volumen"
   else
     fail "$label: fsck_hfs rechaza el volumen"
     cat "fsck-$label.log"
+    rc=1
   fi
   detach "$whole"
+  return $rc
+}
+
+dev_size() {
+  python3 -I -c 'import plistlib, subprocess, sys
+print(plistlib.loads(subprocess.check_output(["diskutil", "info", "-plist", sys.argv[1]]))["TotalSize"])' "$1"
+}
+
+# Diagnóstico de una reconstrucción que fsck_hfs rechaza: diferencias de cabecera y
+# de bitmap respecto al original, y la salida detallada de fsck_hfs.
+diagnose() {
+  local orig=$1 rebuilt=$2 label=$3
+  log "Diagnóstico de $label"
+  local wa va ma wb vb mb
+  read -r wa va ma < <(attach "$orig" -nomount -readonly)
+  read -r wb vb mb < <(attach "$rebuilt" -nomount -readonly -imagekey diskimage-class=CRawDiskImage)
+  sudo -n python3 -I "$HERE/hfs_bitmap_diff.py" "/dev/r${va#/dev/}" "$(dev_size "$va")" \
+    "/dev/r${vb#/dev/}" "$(dev_size "$vb")" || true
+  echo "-- fsck_hfs -fnd (reconstruido)"
+  sudo -n fsck_hfs -fnd "/dev/r${vb#/dev/}" 2>&1 | tail -n 80 || true
+  detach "$wb"
+  detach "$wa"
 }
 
 # Inventario de una imagen montada en solo lectura.
@@ -181,7 +205,7 @@ variant() {
   detach "$whole"
 
   "$CLI" probe "$label.dmg" || fail "$label: probe falla"
-  apple_fsck "$label.dmg" "$label-original"
+  apple_fsck "$label.dmg" "$label-original" || true
   snapshot "$label.dmg" "$label-original.json"
   scan_clean "$label.dmg" "$label-original" 1900
 
@@ -194,7 +218,9 @@ variant() {
     return
   fi
   tail -n 3 "rebuild-$label.log"
-  apple_fsck "$label-rebuilt.img" "$label-rebuilt" -imagekey diskimage-class=CRawDiskImage
+  if ! apple_fsck "$label-rebuilt.img" "$label-rebuilt" -imagekey diskimage-class=CRawDiskImage; then
+    diagnose "$label.dmg" "$label-rebuilt.img" "$label"
+  fi
   snapshot "$label-rebuilt.img" "$label-rebuilt.json" -imagekey diskimage-class=CRawDiskImage
   if $MANIFEST compare "$label-original.json" "$label-rebuilt.json"; then
     ok "$label: la reconstrucción conserva todo (contenido, xattrs, flags, CNID, fechas)"
@@ -260,7 +286,9 @@ damage() {
       continue
     fi
     ok "daño $k: reconstruido y verificado"
-    apple_fsck "f-$k.img" "daño-$k" -imagekey diskimage-class=CRawDiskImage
+    if ! apple_fsck "f-$k.img" "daño-$k" -imagekey diskimage-class=CRawDiskImage; then
+      diagnose "$raw" "f-$k.img" "daño-$k"
+    fi
     case " $keep " in
       *" $k "*)
         snapshot "f-$k.img" "f-$k.json" -imagekey diskimage-class=CRawDiskImage

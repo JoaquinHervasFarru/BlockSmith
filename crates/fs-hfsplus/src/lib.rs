@@ -2,6 +2,7 @@
 //!
 //! Implementación propia basada en Apple Technical Note TN1150.
 
+pub mod attributes;
 pub mod bitmap;
 pub mod btree;
 pub mod catalog;

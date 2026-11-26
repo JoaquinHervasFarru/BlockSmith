@@ -357,6 +357,15 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
     used.set_range(0, head);
     let tail = ((vh.volume_bytes().saturating_sub(1024)) / bs) as u32;
     used.set_range(tail, total.saturating_sub(tail));
+    // La copia alternativa se reescribe donde está (o donde indica TN1150 si no se
+    // encuentra), relativa al inicio del volumen como el resto de escrituras.
+    let alt_offset = match vol.alternate_header_at()? {
+        Some((off, _)) => off,
+        None => vol.alternate_header_offsets().first().copied().unwrap_or(vol.offset + vh.volume_bytes() - 1024),
+    } - vol.offset;
+    if alt_offset / bs < total as u64 {
+        used.set(alt_offset as u32 / bs as u32);
+    }
     let in_range = |e: &Extent| e.start_block as u64 + e.block_count as u64 <= total as u64;
     let overflow = &scan.overflow;
     let keep_fork = |fork: &ForkData, id: u32, used: &mut AllocationBitmap| {
@@ -367,6 +376,10 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
     keep_fork(&vh.allocation_file, cnid::ALLOCATION_FILE, &mut used);
     keep_fork(&vh.attributes_file, cnid::ATTRIBUTES_FILE, &mut used);
     keep_fork(&vh.startup_file, cnid::STARTUP_FILE, &mut used);
+    // Datos de atributos extendidos grandes (árbol de atributos, registros 0x20/0x30).
+    for (_, e) in scan.attr_extents.iter().filter(|(_, e)| in_range(e)) {
+        used.set_range(e.start_block, e.block_count);
+    }
     // Bloques defectuosos: solo existen como extents del fileID 5.
     for (_, exts) in overflow.get(&(cnid::BAD_BLOCKS, FORK_DATA)).into_iter().flatten() {
         for e in exts.iter().filter(|e| e.block_count > 0 && in_range(e)) {
@@ -687,7 +700,7 @@ pub fn plan_rebuild(vol: &Volume<'_>, scan: &HfsScan) -> FsResult<RebuildPlan> {
         label: "Volume Header".into(),
     });
     writes.push(BlockWrite {
-        offset: vh.volume_bytes() - 1024,
+        offset: alt_offset,
         data: vh_bytes,
         phase: WritePhase::Commit,
         label: "Volume Header alternativo".into(),

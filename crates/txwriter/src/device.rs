@@ -126,6 +126,8 @@ pub struct Assessment {
 fn dev_numbers(meta: &std::fs::Metadata, rdev: bool) -> (u64, u64) {
     use std::os::unix::fs::MetadataExt;
     let d = if rdev { meta.rdev() } else { meta.dev() };
+    // dev_t es u64 en Linux e i32 en macOS.
+    let d = d as libc::dev_t;
     (libc::major(d) as u64, libc::minor(d) as u64)
 }
 
@@ -265,12 +267,14 @@ pub fn undo_on_target_device(dir: &Path, target: &Path) -> bool {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     const MOUNTINFO: &str = "\
 22 1 254:0 / / rw,relatime shared:1 - ext4 /dev/vda rw
 30 22 8:17 / /media/ana/Archivo\\040Fotos rw - hfsplus /dev/sdb1 rw
 31 22 7:0 / /mnt/imagen rw - hfsplus /dev/loop0 rw
 ";
 
+    #[cfg(unix)]
     fn fake_sysfs() -> tempfile::TempDir {
         let root = tempfile::tempdir().unwrap();
         let mk = |rel: &str, content: &str| {
@@ -293,6 +297,8 @@ mod tests {
         root
     }
 
+    // Simula /sys de Linux con enlaces simbólicos: no aplica en Windows.
+    #[cfg(unix)]
     #[test]
     fn mountinfo_and_device_families() {
         let m = parse_mountinfo(MOUNTINFO);
@@ -304,6 +310,8 @@ mod tests {
         assert_eq!(device_family(sys.path(), "9:9"), vec!["9:9"]);
     }
 
+    // Simula /sys de Linux con enlaces simbólicos: no aplica en Windows.
+    #[cfg(unix)]
     #[test]
     fn image_attached_to_loop_is_detected() {
         let sys = fake_sysfs();

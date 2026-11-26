@@ -149,6 +149,10 @@ pub struct FileRecord {
     pub info: CommonInfo,
     pub data_fork: ForkData,
     pub rsrc_fork: ForkData,
+    /// Campos que TN1150 marca como reservados (offsets 4 y 84). macOS los usa, por
+    /// ejemplo en los enlaces duros, así que se conservan tal cual al reescribir.
+    pub reserved1: u32,
+    pub reserved2: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -182,6 +186,8 @@ impl CatalogRecord {
                 info: CommonInfo::parse(b, 12),
                 data_fork: ForkData::parse(&b[88..168]),
                 rsrc_fork: ForkData::parse(&b[168..248]),
+                reserved1: be_u32(b, 4),
+                reserved2: be_u32(b, 84),
             })),
             t @ (rtype::FOLDER_THREAD | rtype::FILE_THREAD) => {
                 let len = be_u16(b, 8) as usize;
@@ -211,7 +217,9 @@ impl CatalogRecord {
                 let mut b = vec![0u8; Self::FILE_SIZE];
                 f.info.write(&mut b, 12);
                 put_be_u16(&mut b, 0, rtype::FILE);
+                put_be_u32(&mut b, 4, f.reserved1);
                 put_be_u32(&mut b, 8, f.file_id);
+                put_be_u32(&mut b, 84, f.reserved2);
                 f.data_fork.write(&mut b[88..168]);
                 f.rsrc_fork.write(&mut b[168..248]);
                 b
@@ -261,7 +269,39 @@ mod tests {
         let thread = CatalogRecord::FileThread(ThreadRecord { parent_id: 17, name: to_hfs_name("a.txt") });
         assert_eq!(CatalogRecord::parse(&thread.to_bytes()).unwrap(), thread);
         let data_fork = ForkData { logical_size: 10, ..Default::default() };
-        let file = CatalogRecord::File(FileRecord { file_id: 18, info, data_fork, rsrc_fork: ForkData::default() });
+        let file = CatalogRecord::File(FileRecord {
+            file_id: 18,
+            info,
+            data_fork,
+            rsrc_fork: ForkData::default(),
+            reserved1: 0x1234_5678,
+            reserved2: 0x9abc_def0,
+        });
         assert_eq!(CatalogRecord::parse(&file.to_bytes()).unwrap(), file);
+    }
+
+    /// Reescribir un registro de carpeta o de archivo no pierde ningún byte, incluidos
+    /// los campos que TN1150 marca como reservados.
+    #[test]
+    fn records_roundtrip_byte_for_byte() {
+        let mut seed = 0x2545_f491_4f6c_dd1du64;
+        let mut noise = |n: usize| -> Vec<u8> {
+            (0..n)
+                .map(|_| {
+                    seed ^= seed << 13;
+                    seed ^= seed >> 7;
+                    seed ^= seed << 17;
+                    seed as u8
+                })
+                .collect()
+        };
+        for (ty, size) in [(rtype::FOLDER, CatalogRecord::FOLDER_SIZE), (rtype::FILE, CatalogRecord::FILE_SIZE)] {
+            for _ in 0..50 {
+                let mut raw = noise(size);
+                put_be_u16(&mut raw, 0, ty);
+                let rec = CatalogRecord::parse(&raw).expect("registro válido");
+                assert_eq!(rec.to_bytes(), raw);
+            }
+        }
     }
 }

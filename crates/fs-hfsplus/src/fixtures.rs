@@ -158,6 +158,8 @@ fn flatten(entries: &[Entry], parent: u32, flat: &mut Flat) -> u32 {
                         info: info(0o100644, FILE_THREAD_EXISTS),
                         data_fork: ForkData::default(),
                         rsrc_fork: ForkData::default(),
+                        reserved1: 0,
+                        reserved2: 0,
                     }),
                 ));
                 flat.records.push((

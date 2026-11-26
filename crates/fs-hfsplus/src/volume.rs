@@ -67,13 +67,36 @@ impl<'a> Volume<'a> {
         ForkReader::new(self.dev, self.offset, self.vh.block_size, extents, fork.logical_size)
     }
 
-    /// Lee la copia alternativa del Volume Header (1024 bytes antes del final del volumen).
-    pub fn alternate_header(&self) -> IoResult<Option<VolumeHeader>> {
-        let end = self.offset + self.vh.volume_bytes();
-        if end < 1024 || end > self.dev.len() {
-            return Ok(None);
+    /// Posiciones posibles de la copia alternativa del Volume Header, por orden de
+    /// preferencia. TN1150 la sitúa en el penúltimo sector de 512 bytes del volumen, es
+    /// decir, de la partición que lo contiene; si la partición no mide un número entero
+    /// de bloques, eso queda después del último bloque. Se acepta también la posición
+    /// relativa al último bloque, y es la única para un volumen dentro de un wrapper HFS.
+    pub fn alternate_header_offsets(&self) -> Vec<u64> {
+        let mut out = Vec::new();
+        if !self.wrapped && self.dev.len() >= self.offset + 2048 {
+            out.push(self.dev.len() - 1024);
         }
-        Ok(VolumeHeader::parse(&self.dev.read_vec(end - 1024, SIZE)?))
+        let by_blocks = self.offset + self.vh.volume_bytes();
+        if by_blocks >= self.offset + 2048 && by_blocks <= self.dev.len() && !out.contains(&(by_blocks - 1024)) {
+            out.push(by_blocks - 1024);
+        }
+        out
+    }
+
+    /// Lee la copia alternativa del Volume Header: (offset absoluto, cabecera).
+    pub fn alternate_header_at(&self) -> IoResult<Option<(u64, VolumeHeader)>> {
+        for off in self.alternate_header_offsets() {
+            if let Some(vh) = VolumeHeader::parse(&self.dev.read_vec(off, SIZE)?) {
+                return Ok(Some((off, vh)));
+            }
+        }
+        Ok(None)
+    }
+
+    /// Lee la copia alternativa del Volume Header.
+    pub fn alternate_header(&self) -> IoResult<Option<VolumeHeader>> {
+        Ok(self.alternate_header_at()?.map(|(_, vh)| vh))
     }
 }
 

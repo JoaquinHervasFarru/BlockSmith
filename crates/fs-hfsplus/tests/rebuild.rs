@@ -240,3 +240,36 @@ fn volume_name_and_trees() {
     assert_eq!(plan.tree_after.len(), 42 + 8 + 1);
     assert!(plan.tree_after.iter().any(|e| e.name == "Viaje Lisboa" && e.is_folder));
 }
+
+/// Partición que no mide un número entero de bloques (como las que crea macOS con un
+/// mapa MBR): la copia alternativa del Volume Header está en el penúltimo sector de la
+/// partición, después del último bloque. El escaneo la encuentra y la reconstrucción
+/// la actualiza en ese mismo sitio.
+#[test]
+fn alternate_header_at_partition_end() {
+    let img = build_volume(&opts(), &sample_tree()).unwrap();
+    let vol_bytes = img.len();
+    let mut part = img.clone();
+    part.extend(std::iter::repeat_n(0u8, 3072));
+    let alt = img[vol_bytes - 1024..vol_bytes - 512].to_vec();
+    part[vol_bytes - 1024..vol_bytes - 512].fill(0);
+    let end = part.len();
+    part[end - 1024..end - 512].copy_from_slice(&alt);
+
+    let dev = MemoryDevice::new(part.clone());
+    let vol = Volume::open(&dev).unwrap().unwrap();
+    assert_eq!(vol.alternate_header_at().unwrap().map(|(o, _)| o), Some(end as u64 - 1024));
+    let s = scan_volume(&vol, &mut Quiet).unwrap();
+    let codes: Vec<&str> = s.result.findings.iter().map(|f| f.code.as_str()).collect();
+    assert!(!codes.contains(&"HFS_ALT_HEADER_MISSING"), "{codes:?}");
+
+    let plan = plan_rebuild(&vol, &s).unwrap();
+    let alt_write = plan.writes.iter().find(|w| w.label == "Volume Header alternativo").unwrap();
+    assert_eq!(alt_write.offset, end as u64 - 1024);
+    let mut out = part.clone();
+    apply_in_memory(&mut out, 0, end as u64, &plan).unwrap();
+    assert_eq!(out[end - 1024..end - 512], out[1024..1536], "la copia alternativa coincide con la principal");
+    let after = scan(&MemoryDevice::new(out));
+    let serious: Vec<_> = after.result.findings.iter().filter(|f| f.severity != Severity::Cosmetic).collect();
+    assert!(serious.is_empty(), "{serious:#?}");
+}

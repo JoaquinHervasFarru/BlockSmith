@@ -10,8 +10,8 @@ enlaces simbólicos, fechas de modificación y creación, y el SHA-256 de cada a
 extendido (incluido com.apple.ResourceFork). En macOS los xattr se leen con libc
 mediante ctypes; en otros sistemas, con os.listxattr si existe.
 
-`compare` falla si hay cualquier diferencia. Con --content-only solo compara el
-multiconjunto de contenidos de los archivos (para daños que cambian rutas o nombres).
+`compare` falla si hay cualquier diferencia. Con --content-only solo comprueba que no
+falte ningún contenido de archivo del original (para daños que cambian rutas o nombres).
 """
 from __future__ import annotations
 
@@ -106,14 +106,20 @@ def snapshot(root: str) -> dict:
 
 def compare(a: dict, b: dict, content_only: bool) -> list[str]:
     if content_only:
-        ca = sorted(e["sha256"] for e in a.values() if "sha256" in e)
-        cb = sorted(e["sha256"] for e in b.values() if "sha256" in e)
-        if ca == cb:
+        # Ningún contenido de A puede faltar en B (contando repeticiones). B puede tener
+        # más: un daño puede dejar visible una carpeta de sistema que estaba oculta.
+        from collections import Counter
+        ca = Counter(e["sha256"] for e in a.values() if "sha256" in e)
+        cb = Counter(e["sha256"] for e in b.values() if "sha256" in e)
+        missing = ca - cb
+        extra = cb - ca
+        if extra:
+            paths = [k for k, e in b.items() if e.get("sha256") in extra]
+            print(f"  (aviso) {sum(extra.values())} contenidos que no estaban en el original: {paths[:10]}")
+        if not missing:
             return []
-        missing = len(set(ca) - set(cb))
-        extra = len(set(cb) - set(ca))
-        return [f"contenidos distintos: {len(ca)} vs {len(cb)} archivos, "
-                f"{missing} contenidos ausentes, {extra} contenidos nuevos"]
+        paths = [k for k, e in a.items() if e.get("sha256") in missing]
+        return [f"faltan {sum(missing.values())} contenidos del original: {paths[:20]}"]
     errs = []
     for k in sorted(set(a) - set(b)):
         errs.append(f"falta: {k}")
